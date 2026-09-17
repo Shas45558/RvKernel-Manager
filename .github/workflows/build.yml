@@ -2,34 +2,121 @@ name: Build RvKernel Manager
 
 on:
   workflow_dispatch:
+
   push:
     branches:
       - main
 
 jobs:
   build:
+    name: Build Android APK
     runs-on: ubuntu-latest
 
     steps:
+      # --------------------------------
+      # Checkout source
+      # --------------------------------
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Make gradlew executable
-        run: chmod +x gradlew
-
-      - name: Set up JDK
+      # --------------------------------
+      # Java 17
+      # --------------------------------
+      - name: Set up JDK 17
         uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: '17'
           cache: gradle
 
-      - name: Build debug APK
-        run: ./gradlew assembleDebug --stacktrace
+      # --------------------------------
+      # Gradle wrapper permission
+      # --------------------------------
+      - name: Make gradlew executable
+        run: chmod +x gradlew
 
-      - name: Upload APK
+      # --------------------------------
+      # Show environment
+      # --------------------------------
+      - name: Show build environment
+        run: |
+          echo "===== JAVA ====="
+          java -version
+
+          echo "===== GRADLE ====="
+          ./gradlew --version
+
+          echo "===== PROJECT ====="
+          pwd
+          ls -la
+
+      # --------------------------------
+      # Clean project
+      # --------------------------------
+      - name: Clean
+        run: |
+          ./gradlew clean --stacktrace
+
+      # --------------------------------
+      # Build Debug APK
+      # --------------------------------
+      - name: Build Debug APK
+        id: build
+        run: |
+          set -o pipefail
+          ./gradlew assembleDebug --stacktrace --info 2>&1 | tee build.log
+
+      # --------------------------------
+      # Show useful error if build fails
+      # --------------------------------
+      - name: Show build failure
+        if: failure()
+        run: |
+          echo ""
+          echo "========================================"
+          echo "        GRADLE BUILD FAILURE"
+          echo "========================================"
+          echo ""
+
+          echo "===== WHAT WENT WRONG ====="
+          grep -n -A40 -B10 "What went wrong" build.log || true
+
+          echo ""
+          echo "===== COULD NOT / ERROR ====="
+          grep -n -A20 -B10 -E "Could not|ERROR|error:" build.log | head -300 || true
+
+          echo ""
+          echo "===== FAILED TASKS ====="
+          grep -n "FAILED" build.log || true
+
+      # --------------------------------
+      # Upload build log if failed
+      # --------------------------------
+      - name: Upload build log
+        if: failure()
         uses: actions/upload-artifact@v4
         with:
-          name: RvKernel-Manager-MTK-debug
+          name: RvKernel-Manager-build-log
+          path: build.log
+          if-no-files-found: warn
+
+      # --------------------------------
+      # Find APK
+      # --------------------------------
+      - name: Find APK
+        if: success()
+        run: |
+          echo "===== APK FILES ====="
+          find app/build/outputs -type f -name "*.apk" -print
+
+      # --------------------------------
+      # Upload APK
+      # --------------------------------
+      - name: Upload Debug APK
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: RvKernel-Manager-MTK-GPU-debug
           path: |
             app/build/outputs/apk/debug/*.apk
+          if-no-files-found: error
