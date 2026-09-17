@@ -1978,7 +1978,7 @@ fun GPUCard(viewModel: SoCViewModel) {
                                 bottomEnd = 8.dp,
                             ),
                         ),
-                        enabled = !isMtkGpu,
+                        enabled = !isMtkGpu || SoCUtils.isMtkGpuMaxFreqWritable(),
                         onClick = { openAMXF = true },
                     ) {
                         Row(

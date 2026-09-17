@@ -2,16 +2,12 @@ name: Build RvKernel Manager
 
 on:
   workflow_dispatch:
-
   push:
-    branches:
-      - main
+    branches: [ main ]
 
 jobs:
   build:
-    name: Build Android APK
     runs-on: ubuntu-latest
-
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -26,58 +22,10 @@ jobs:
       - name: Make gradlew executable
         run: chmod +x gradlew
 
-      - name: Show Java and Gradle
-        run: |
-          echo "===== JAVA ====="
-          java -version
+      - name: Build debug APK
+        run: ./gradlew assembleDebug --stacktrace
 
-          echo "===== GRADLE ====="
-          ./gradlew --version
-
-      - name: Clean
-        run: |
-          ./gradlew clean --stacktrace
-
-      - name: Build Debug APK
-        run: |
-          set -o pipefail
-          ./gradlew assembleDebug --stacktrace --info 2>&1 | tee build.log
-
-      - name: Show build failure
-        if: failure()
-        run: |
-          echo "========================================"
-          echo "        GRADLE BUILD FAILURE"
-          echo "========================================"
-
-          echo ""
-          echo "===== WHAT WENT WRONG ====="
-          grep -n -A40 -B10 "What went wrong" build.log || true
-
-          echo ""
-          echo "===== ERRORS ====="
-          grep -n -A20 -B10 -E "Could not|ERROR|error:" build.log | head -300 || true
-
-          echo ""
-          echo "===== FAILED TASKS ====="
-          grep -n "FAILED" build.log || true
-
-      - name: Upload build log
-        if: failure()
-        uses: actions/upload-artifact@v4
-        with:
-          name: RvKernel-Manager-build-log
-          path: build.log
-          if-no-files-found: warn
-
-      - name: Find APK
-        if: success()
-        run: |
-          echo "===== APK FILES ====="
-          find app/build/outputs -type f -name "*.apk" -print
-
-      - name: Upload Debug APK
-        if: success()
+      - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
           name: RvKernel-Manager-MTK-GPU-debug

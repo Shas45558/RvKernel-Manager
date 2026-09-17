@@ -384,9 +384,19 @@ class SoCViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     private fun updateGPUFreq(target: String, selectedFreq: String) {
-        // MTK GED does not expose KGSL-style min/max frequency nodes.
-        // Do not write the selected value into a read-only GED statistics file.
-        if (SoCUtils.isMtkGpu()) return
+        if (SoCUtils.isMtkGpu()) {
+            // MTK GED exposes a writable maximum-frequency ceiling as an OPP index.
+            // It does not expose a true minimum-frequency floor on this interface,
+            // so never misuse custom_boost_gpu_freq as a fake minimum.
+            if (target == "max") {
+                SoCUtils.writeMtkGpuMaxFreq(selectedFreq)
+            }
+            _gpuState.value = _gpuState.value.copy(
+                minFreq = SoCUtils.readMtkGpuMinFreq(),
+                maxFreq = SoCUtils.readMtkGpuMaxFreq(),
+            )
+            return
+        }
 
         val path = if (target == "min") SoCUtils.MIN_FREQ_GPU else SoCUtils.MAX_FREQ_GPU
         SoCUtils.writeFreqGPU(path, selectedFreq)

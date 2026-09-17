@@ -100,6 +100,11 @@ object SoCUtils {
     const val MTK_GPU_CURRENT_FREQ = "/sys/kernel/ged/hal/current_freqency"
     const val MTK_GPU_OPP_LOGS = "/sys/kernel/ged/hal/opp_logs"
     const val MTK_GPU_UTILIZATION = "/sys/kernel/ged/hal/gpu_utilization"
+    private val MTK_GPU_UPBOUND_PATHS = listOf(
+        "/sys/kernel/ged/hal/custom_upbound_gpu_freq",
+        "/sys/kernel/debug/ged/hal/custom_upbound_gpu_freq",
+        "/d/ged/hal/custom_upbound_gpu_freq"
+    )
 
     /**
      * Detect MTK GED through the shell instead of File.exists().
@@ -277,6 +282,31 @@ object SoCUtils {
     fun readMtkGpuMinFreq(): String = readMtkGpuAvailableFreq().minByOrNull { it.toIntOrNull() ?: Int.MAX_VALUE } ?: "0"
 
     fun readMtkGpuMaxFreq(): String = readMtkGpuAvailableFreq().maxByOrNull { it.toIntOrNull() ?: 0 } ?: "0"
+
+    /**
+     * GED's custom_upbound_gpu_freq is an OPP index, not a frequency in MHz.
+     * Different MTK trees expose it through different debugfs aliases.
+     */
+    fun getMtkGpuUpboundPath(): String? = MTK_GPU_UPBOUND_PATHS.firstOrNull {
+        Shell.cmd("test -e $it").exec().isSuccess
+    }
+
+    fun isMtkGpuMaxFreqWritable(): Boolean = runCatching {
+        getMtkGpuUpboundPath()?.let { Shell.cmd("test -w $it").exec().isSuccess } == true
+    }.getOrDefault(false)
+
+    fun writeMtkGpuMaxFreq(frequency: String) {
+        runCatching {
+            val freqs = readMtkGpuAvailableFreq()
+            val selected = frequency.toIntOrNull() ?: return
+            val index = freqs.indexOfFirst { it.toIntOrNull() == selected }
+            if (index < 0) return
+            val path = getMtkGpuUpboundPath() ?: return
+            Shell.cmd("echo $index > $path").exec()
+        }.onFailure {
+            Log.e(TAG, "writeMtkGpuMaxFreq: ${it.message}", it)
+        }
+    }
 
     fun getMtkGpuUsage(context: Context): String = runCatching {
         val result = Shell.cmd("cat $MTK_GPU_UTILIZATION").exec()
