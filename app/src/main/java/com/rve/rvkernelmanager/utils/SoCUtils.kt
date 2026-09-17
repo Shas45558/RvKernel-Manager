@@ -96,6 +96,13 @@ object SoCUtils {
     const val GPU_THROTTLING = "/sys/class/kgsl/kgsl-3d0/throttling"
     const val GPU_TEMP = "/sys/class/kgsl/kgsl-3d0/temp"
 
+    // MediaTek GED/GPUFREQ (used by MT6768 and other MTK kernels).
+    const val MTK_GPU_CURRENT_FREQ = "/sys/kernel/ged/hal/current_freqency"
+    const val MTK_GPU_OPP_LOGS = "/sys/kernel/ged/hal/opp_logs"
+    const val MTK_GPU_UTILIZATION = "/sys/kernel/ged/hal/gpu_utilization"
+
+    fun isMtkGpu(): Boolean = File(MTK_GPU_CURRENT_FREQ).exists() || File(MTK_GPU_OPP_LOGS).exists()
+
     private var sPrevTotal: Long = -1
     private var sPrevIdle: Long = -1
 
@@ -211,6 +218,64 @@ object SoCUtils {
         }
     }
 
+    /**
+     * MTK GED current_freqency contains two values: OPP index and frequency in kHz,
+     * e.g. "29 299000". Return the frequency in MHz.
+     */
+    fun readMtkGpuCurrentFreq(): String = runCatching {
+        val result = Shell.cmd("cat $MTK_GPU_CURRENT_FREQ").exec()
+        if (!result.isSuccess) return "0"
+        val khz = result.out.asSequence()
+            .flatMap { it.trim().split("\\s+".toRegex()).asSequence() }
+            .mapNotNull { it.toLongOrNull() }
+            .lastOrNull() ?: return "0"
+        (khz / 1000).toString()
+    }.getOrElse {
+        Log.e(TAG, "readMtkGpuCurrentFreq: ${it.message}", it)
+        "0"
+    }
+
+    /**
+     * MTK GED opp_logs lists frequency in Hz in the first column. Convert to MHz,
+     * remove the trailing time column and return a unique sorted OPP list.
+     */
+    fun readMtkGpuAvailableFreq(): List<String> = runCatching {
+        val result = Shell.cmd("cat $MTK_GPU_OPP_LOGS").exec()
+        if (!result.isSuccess) return emptyList()
+        result.out.asSequence()
+            .drop(1)
+            .mapNotNull { line ->
+                line.trim().split("\\s+".toRegex()).firstOrNull()?.toLongOrNull()
+            }
+            .filter { it > 0 }
+            .map { (it / 1_000_000L).toString() }
+            .distinct()
+            .sortedByDescending { it.toIntOrNull() ?: 0 }
+            .toList()
+    }.getOrElse {
+        Log.e(TAG, "readMtkGpuAvailableFreq: ${it.message}", it)
+        emptyList()
+    }
+
+    fun readMtkGpuMinFreq(): String = readMtkGpuAvailableFreq().minByOrNull { it.toIntOrNull() ?: Int.MAX_VALUE } ?: "0"
+
+    fun readMtkGpuMaxFreq(): String = readMtkGpuAvailableFreq().maxByOrNull { it.toIntOrNull() ?: 0 } ?: "0"
+
+    fun getMtkGpuUsage(context: Context): String = runCatching {
+        val result = Shell.cmd("cat $MTK_GPU_UTILIZATION").exec()
+        if (!result.isSuccess) return context.getString(R.string.unknown)
+        // GED exposes utilization as whitespace-separated values. The first value
+        // is the GPU loading value used by the MTK GED interface.
+        val value = result.out.asSequence()
+            .flatMap { it.trim().split("\\s+".toRegex()).asSequence() }
+            .mapNotNull { it.toIntOrNull() }
+            .firstOrNull() ?: return context.getString(R.string.unknown)
+        value.coerceIn(0, 100).toString()
+    }.getOrElse {
+        Log.e(TAG, "getMtkGpuUsage: ${it.message}", it)
+        context.getString(R.string.unknown)
+    }
+
     fun readAvailableFreqGPU(filePath: String): List<String> = runCatching {
         val result = Shell.cmd("cat $filePath").exec()
         if (result.isSuccess) {
@@ -293,6 +358,9 @@ object SoCUtils {
     }
 
     fun getGpuUsage(context: Context): String = runCatching {
+        if (isMtkGpu()) {
+            return getMtkGpuUsage(context)
+        }
         val usage = Utils.readFile("/sys/class/kgsl/kgsl-3d0/gpu_busy_percentage")
         if (usage.isEmpty()) return context.getString(R.string.unknown)
         val cleanedUsage = usage.replace("%", "").trim()

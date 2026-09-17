@@ -142,6 +142,7 @@ import com.rve.rvkernelmanager.ui.components.Card.ItemCard
 import com.rve.rvkernelmanager.ui.components.Card.SwitchOutlinedCard
 import com.rve.rvkernelmanager.ui.components.SimpleTopAppBar
 import com.rve.rvkernelmanager.ui.navigation.BottomNavigationBar
+import com.rve.rvkernelmanager.utils.SoCUtils
 
 sealed interface SocCardType {
     data object CpuMonitor : SocCardType
@@ -1898,6 +1899,7 @@ fun GPUCard(viewModel: SoCViewModel) {
 
     val minFreq = gpuState.minFreq
     val maxFreq = gpuState.maxFreq
+    val isMtkGpu = SoCUtils.isMtkGpu()
 
     val minPwrlevel = gpuState.minPwrlevel.toFloatOrNull() ?: 0f
     val maxPwrlevel = gpuState.maxPwrlevel.toFloatOrNull() ?: 0f
@@ -1939,6 +1941,7 @@ fun GPUCard(viewModel: SoCViewModel) {
                                 bottomEnd = 8.dp,
                             ),
                         ),
+                        enabled = !isMtkGpu,
                         onClick = { openAMNF = true },
                     ) {
                         Row(
@@ -1975,6 +1978,7 @@ fun GPUCard(viewModel: SoCViewModel) {
                                 bottomEnd = 8.dp,
                             ),
                         ),
+                        enabled = !isMtkGpu,
                         onClick = { openAMXF = true },
                     ) {
                         Row(
@@ -2015,6 +2019,7 @@ fun GPUCard(viewModel: SoCViewModel) {
                             )
                         },
                     ),
+                    enabled = gpuState.availableGov.isNotEmpty(),
                     onClick = { openAGG = true },
                 ) {
                     Row(

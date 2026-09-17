@@ -257,19 +257,36 @@ class SoCViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     private fun loadGPUData() {
-        val gpuState = GPUState(
-            minFreq = Utils.readFile(SoCUtils.MIN_FREQ_GPU),
-            maxFreq = Utils.readFile(SoCUtils.MAX_FREQ_GPU),
-            currentFreq = SoCUtils.readFreqGPU(SoCUtils.CURRENT_FREQ_GPU),
-            gov = Utils.readFile(SoCUtils.GOV_GPU),
-            maxPwrlevel = Utils.readFile(SoCUtils.MAX_PWRLEVEL),
-            minPwrlevel = Utils.readFile(SoCUtils.MIN_PWRLEVEL),
-            defaultPwrlevel = Utils.readFile(SoCUtils.DEFAULT_PWRLEVEL),
-            adrenoBoost = Utils.readFile(SoCUtils.ADRENO_BOOST),
-            gpuThrottling = Utils.readFile(SoCUtils.GPU_THROTTLING),
-            availableFreq = SoCUtils.readAvailableFreqGPU(SoCUtils.AVAILABLE_FREQ_GPU),
-            availableGov = SoCUtils.readAvailableGovGPU(SoCUtils.AVAILABLE_GOV_GPU),
-        )
+        val isMtk = SoCUtils.isMtkGpu()
+        val gpuState = if (isMtk) {
+            GPUState(
+                minFreq = SoCUtils.readMtkGpuMinFreq(),
+                maxFreq = SoCUtils.readMtkGpuMaxFreq(),
+                currentFreq = SoCUtils.readMtkGpuCurrentFreq(),
+                gov = "GED/DVFS",
+                maxPwrlevel = "N/A",
+                minPwrlevel = "N/A",
+                defaultPwrlevel = "N/A",
+                adrenoBoost = "0",
+                gpuThrottling = "0",
+                availableFreq = SoCUtils.readMtkGpuAvailableFreq(),
+                availableGov = emptyList(),
+            )
+        } else {
+            GPUState(
+                minFreq = Utils.readFile(SoCUtils.MIN_FREQ_GPU),
+                maxFreq = Utils.readFile(SoCUtils.MAX_FREQ_GPU),
+                currentFreq = SoCUtils.readFreqGPU(SoCUtils.CURRENT_FREQ_GPU),
+                gov = Utils.readFile(SoCUtils.GOV_GPU),
+                maxPwrlevel = Utils.readFile(SoCUtils.MAX_PWRLEVEL),
+                minPwrlevel = Utils.readFile(SoCUtils.MIN_PWRLEVEL),
+                defaultPwrlevel = Utils.readFile(SoCUtils.DEFAULT_PWRLEVEL),
+                adrenoBoost = Utils.readFile(SoCUtils.ADRENO_BOOST),
+                gpuThrottling = Utils.readFile(SoCUtils.GPU_THROTTLING),
+                availableFreq = SoCUtils.readAvailableFreqGPU(SoCUtils.AVAILABLE_FREQ_GPU),
+                availableGov = SoCUtils.readAvailableGovGPU(SoCUtils.AVAILABLE_GOV_GPU),
+            )
+        }
         _gpuState.value = gpuState
 
         _hasDefaultPwrlevel.value = Utils.testFile(SoCUtils.DEFAULT_PWRLEVEL)
@@ -367,6 +384,10 @@ class SoCViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     private fun updateGPUFreq(target: String, selectedFreq: String) {
+        // MTK GED does not expose KGSL-style min/max frequency nodes.
+        // Do not write the selected value into a read-only GED statistics file.
+        if (SoCUtils.isMtkGpu()) return
+
         val path = if (target == "min") SoCUtils.MIN_FREQ_GPU else SoCUtils.MAX_FREQ_GPU
         SoCUtils.writeFreqGPU(path, selectedFreq)
 
@@ -389,7 +410,7 @@ class SoCViewModel(application: Application) : AndroidViewModel(application) {
             ClusterConfig.Little.name -> ClusterConfig.Little.govPath
             ClusterConfig.Big(4).name, ClusterConfig.Big(6).name -> detectedBigClusterConfig?.govPath
             ClusterConfig.Prime.name -> ClusterConfig.Prime.govPath
-            "gpu" -> SoCUtils.GOV_GPU
+            "gpu" -> if (SoCUtils.isMtkGpu()) null else SoCUtils.GOV_GPU
             else -> null
         }
     }
