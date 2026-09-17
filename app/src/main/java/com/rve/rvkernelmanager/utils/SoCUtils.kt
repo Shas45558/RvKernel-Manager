@@ -218,34 +218,51 @@ object SoCUtils {
         }
     }
 
-    /**
-     * MTK GED current_freqency contains two values: OPP index and frequency in kHz,
-     * e.g. "29 299000". Return the frequency in MHz.
-     */
-    fun readMtkGpuCurrentFreq(): String = runCatching {
-        val result = Shell.cmd("cat $MTK_GPU_CURRENT_FREQ").exec()
-        if (!result.isSuccess) return "0"
-        val khz = result.out.asSequence()
-            .flatMap { it.trim().split("\\s+".toRegex()).asSequence() }
-            .mapNotNull { it.toLongOrNull() }
-            .lastOrNull() ?: return "0"
-        (khz / 1000).toString()
-    }.getOrElse {
-        Log.e(TAG, "readMtkGpuCurrentFreq: ${it.message}", it)
-        "0"
+    /** Read an MTK GED node directly, with a root-shell fallback. */
+    private fun readMtkGedNode(path: String): String {
+        return runCatching {
+            val file = File(path)
+            if (file.exists()) {
+                val direct = file.readText().trim()
+                if (direct.isNotEmpty()) return direct
+            }
+            Shell.cmd("cat $path").exec()
+                .takeIf { it.isSuccess }
+                ?.out
+                ?.joinToString("\n")
+                ?.trim()
+                .orEmpty()
+        }.getOrElse {
+            Log.e(TAG, "readMtkGedNode($path): ${it.message}", it)
+            ""
+        }
     }
 
     /**
-     * MTK GED opp_logs lists frequency in Hz in the first column. Convert to MHz,
-     * remove the trailing time column and return a unique sorted OPP list.
+     * MTK GED current_freqency contains: OPP index + frequency in kHz,
+     * e.g. "29 299000". Return the frequency in MHz.
+     */
+    fun readMtkGpuCurrentFreq(): String = runCatching {
+        val values = readMtkGedNode(MTK_GPU_CURRENT_FREQ)
+            .trim()
+            .split(Regex("\\s+"))
+            .mapNotNull { it.toLongOrNull() }
+        val khz = values.getOrNull(1) ?: values.lastOrNull() ?: return ""
+        (khz / 1000L).toString()
+    }.getOrElse {
+        Log.e(TAG, "readMtkGpuCurrentFreq: ${it.message}", it)
+        ""
+    }
+
+    /**
+     * MTK GED opp_logs contains GPU OPP frequencies in Hz in column 1.
+     * Keep every valid OPP and convert Hz -> MHz.
      */
     fun readMtkGpuAvailableFreq(): List<String> = runCatching {
-        val result = Shell.cmd("cat $MTK_GPU_OPP_LOGS").exec()
-        if (!result.isSuccess) return emptyList()
-        result.out.asSequence()
-            .drop(1)
+        readMtkGedNode(MTK_GPU_OPP_LOGS)
+            .lineSequence()
             .mapNotNull { line ->
-                line.trim().split("\\s+".toRegex()).firstOrNull()?.toLongOrNull()
+                line.trim().split(Regex("\\s+")).firstOrNull()?.toLongOrNull()
             }
             .filter { it > 0 }
             .map { (it / 1_000_000L).toString() }
@@ -257,19 +274,19 @@ object SoCUtils {
         emptyList()
     }
 
-    fun readMtkGpuMinFreq(): String = readMtkGpuAvailableFreq().minByOrNull { it.toIntOrNull() ?: Int.MAX_VALUE } ?: "0"
+    fun readMtkGpuMinFreq(): String =
+        readMtkGpuAvailableFreq().minByOrNull { it.toIntOrNull() ?: Int.MAX_VALUE }.orEmpty()
 
-    fun readMtkGpuMaxFreq(): String = readMtkGpuAvailableFreq().maxByOrNull { it.toIntOrNull() ?: 0 } ?: "0"
+    fun readMtkGpuMaxFreq(): String =
+        readMtkGpuAvailableFreq().maxByOrNull { it.toIntOrNull() ?: 0 }.orEmpty()
 
     fun getMtkGpuUsage(context: Context): String = runCatching {
-        val result = Shell.cmd("cat $MTK_GPU_UTILIZATION").exec()
-        if (!result.isSuccess) return context.getString(R.string.unknown)
-        // GED exposes utilization as whitespace-separated values. The first value
-        // is the GPU loading value used by the MTK GED interface.
-        val value = result.out.asSequence()
-            .flatMap { it.trim().split("\\s+".toRegex()).asSequence() }
+        val values = readMtkGedNode(MTK_GPU_UTILIZATION)
+            .trim()
+            .split(Regex("\\s+"))
             .mapNotNull { it.toIntOrNull() }
-            .firstOrNull() ?: return context.getString(R.string.unknown)
+        // MTK GED reports Loading Block Idle. Loading is the first value.
+        val value = values.firstOrNull() ?: return context.getString(R.string.unknown)
         value.coerceIn(0, 100).toString()
     }.getOrElse {
         Log.e(TAG, "getMtkGpuUsage: ${it.message}", it)
