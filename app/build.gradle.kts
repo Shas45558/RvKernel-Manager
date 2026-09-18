@@ -14,6 +14,7 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
+
 import java.util.Properties
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 
@@ -40,15 +41,36 @@ android {
                 null
             }
 
-            val getString: (String, String, String) -> String? = { propertyName, environmentName, prompt ->
-                properties?.getProperty(propertyName) ?: System.getenv(environmentName)
+            val getString: (String, String, String) -> String? = {
+                    propertyName, environmentName, prompt ->
+                properties?.getProperty(propertyName)
+                    ?: System.getenv(environmentName)
                     ?: System.console()?.readLine("\n$prompt: ")
             }
 
-            storeFile = getString("storeFile", "STORE_FILE", "Store file")?.let { rootProject.file(it) }
-            storePassword = getString("storePassword", "STORE_PASSWORD", "Store password")
-            keyAlias = getString("keyAlias", "KEY_ALIAS", "Key alias")
-            keyPassword = getString("keyPassword", "KEY_PASSWORD", "Key password")
+            storeFile = getString(
+                "storeFile",
+                "RELEASE_STORE_FILE",
+                "Store file"
+            )?.let { rootProject.file(it) }
+
+            storePassword = getString(
+                "storePassword",
+                "RELEASE_STORE_PASSWORD",
+                "Store password"
+            )
+
+            keyAlias = getString(
+                "keyAlias",
+                "RELEASE_KEY_ALIAS",
+                "Key alias"
+            )
+
+            keyPassword = getString(
+                "keyPassword",
+                "RELEASE_KEY_PASSWORD",
+                "Key password"
+            )
         }
     }
 
@@ -86,7 +108,10 @@ android {
             isMinifyEnabled = true
             isShrinkResources = true
             isDebuggable = false
-            proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
+            proguardFiles(
+                getDefaultProguardFile("proguard-android-optimize.txt"),
+                "proguard-rules.pro"
+            )
             signingConfig = signingConfigs.getByName("release")
             buildConfigField("Boolean", "ENABLE_BETA_FEATURES", "false")
         }
@@ -151,6 +176,7 @@ dependencies {
     debugImplementation(libs.junit)
     debugImplementation(libs.androidx.junit)
     debugImplementation(libs.androidx.espresso.core)
+
     implementation(libs.androidx.activity.compose)
     implementation(platform(libs.androidx.compose.bom))
     implementation(libs.androidx.compose.animation)
@@ -160,8 +186,10 @@ dependencies {
     implementation(libs.androidx.compose.ui.graphics)
     implementation(libs.androidx.compose.ui.tooling)
     implementation(libs.androidx.compose.ui.tooling.preview)
+
     debugImplementation(libs.androidx.compose.test.manifest)
     debugImplementation(libs.androidx.compose.test.junit4)
+
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.navigation.compose)
     implementation(libs.androidx.lifecycle.runtime.ktx)
