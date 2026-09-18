@@ -99,11 +99,19 @@ object SoCUtils {
     // MediaTek GED/GPUFREQ (used by MT6768 and other MTK kernels).
     const val MTK_GPU_CURRENT_FREQ = "/sys/kernel/ged/hal/current_freqency"
     const val MTK_GPU_OPP_LOGS = "/sys/kernel/ged/hal/opp_logs"
+    const val MTK_GPU_OPP_DUMP = "/proc/gpufreq/gpufreq_opp_dump"
+    const val MTK_GPU_VAR_DUMP = "/proc/gpufreq/gpufreq_var_dump"
     const val MTK_GPU_UTILIZATION = "/sys/kernel/ged/hal/gpu_utilization"
     private val MTK_GPU_UPBOUND_PATHS = listOf(
         "/sys/kernel/ged/hal/custom_upbound_gpu_freq",
         "/sys/kernel/debug/ged/hal/custom_upbound_gpu_freq",
         "/d/ged/hal/custom_upbound_gpu_freq"
+    )
+
+    private val MTK_GPU_BOTTOM_PATHS = listOf(
+        "/sys/kernel/ged/hal/custom_boost_gpu_freq",
+        "/sys/kernel/debug/ged/hal/custom_boost_gpu_freq",
+        "/d/ged/hal/custom_boost_gpu_freq"
     )
 
     /**
@@ -262,7 +270,30 @@ object SoCUtils {
      * MTK GED opp_logs lists frequency in Hz in the first column. Convert to MHz,
      * remove the trailing time column and return a unique sorted OPP list.
      */
+    /**
+     * Read the real MediaTek GPU OPP table.
+     *
+     * This device exposes the authoritative table through
+     * /proc/gpufreq/gpufreq_opp_dump. GED opp_logs is a statistics/logging
+     * interface and on this kernel does not contain the complete 32-entry OPP
+     * table (the lowest 299 MHz entry can be missing).
+     */
     fun readMtkGpuAvailableFreq(): List<String> = runCatching {
+        val dump = Shell.cmd("cat $MTK_GPU_OPP_DUMP").exec()
+        if (dump.isSuccess) {
+            val procFreqs = dump.out.asSequence()
+                .mapNotNull { line ->
+                    Regex("\\[\\d+\\]\\s+freq\\s*=\\s*(\\d+)").find(line)?.groupValues?.getOrNull(1)?.toLongOrNull()
+                }
+                .filter { it > 0 }
+                .map { (it / 1000L).toString() }
+                .distinct()
+                .sortedByDescending { it.toIntOrNull() ?: 0 }
+                .toList()
+            if (procFreqs.isNotEmpty()) return procFreqs
+        }
+
+        // Fallback for older GED trees.
         val result = Shell.cmd("cat $MTK_GPU_OPP_LOGS").exec()
         if (!result.isSuccess) return emptyList()
         result.out.asSequence()
@@ -279,7 +310,59 @@ object SoCUtils {
         emptyList()
     }
 
-    fun readMtkGpuMinFreq(): String = readMtkGpuAvailableFreq().minByOrNull { it.toIntOrNull() ?: Int.MAX_VALUE } ?: "0"
+    /**
+     * MTK GED's custom_boost_gpu_freq is the GPU frequency floor.
+     *
+     * The node accepts a frequency LEVEL, not a MHz value. On the MTK table
+     * used by this device, level 0 maps to the lowest OPP (299 MHz), while
+     * level N raises the minimum floor to the corresponding higher OPP.
+     */
+    fun getMtkGpuBottomPath(): String? = MTK_GPU_BOTTOM_PATHS.firstOrNull {
+        Shell.cmd("test -e $it").exec().isSuccess
+    }
+
+    fun readMtkGpuMinFreq(): String = runCatching {
+        val freqs = readMtkGpuAvailableFreq()
+        if (freqs.isEmpty()) return "0"
+
+        val path = getMtkGpuBottomPath()
+        if (path != null) {
+            val level = Shell.cmd("cat $path").exec().out.firstOrNull()?.trim()?.toIntOrNull()
+            if (level != null) {
+                val index = (freqs.lastIndex - level).coerceIn(0, freqs.lastIndex)
+                return freqs[index]
+            }
+        }
+
+        // If the floor node is unavailable, report the physical lowest OPP.
+        freqs.minByOrNull { it.toIntOrNull() ?: Int.MAX_VALUE } ?: "0"
+    }.getOrElse {
+        Log.e(TAG, "readMtkGpuMinFreq: ${it.message}", it)
+        "0"
+    }
+
+    fun isMtkGpuMinFreqWritable(): Boolean = runCatching {
+        getMtkGpuBottomPath()?.let { Shell.cmd("test -w $it").exec().isSuccess } == true
+    }.getOrDefault(false)
+
+    fun writeMtkGpuMinFreq(frequency: String) {
+        runCatching {
+            val freqs = readMtkGpuAvailableFreq()
+            val selected = frequency.toIntOrNull() ?: return
+            val index = freqs.indexOfFirst { it.toIntOrNull() == selected }
+            if (index < 0) return
+            val path = getMtkGpuBottomPath() ?: return
+
+            // GED's custom_boost_gpu_freq uses the same inverted level mapping
+            // as the kernel's bottom-frequency setter:
+            //   level = (table_size - 1) - OPP_index
+            // This is the actual minimum-frequency floor, not a fake boost.
+            val level = freqs.lastIndex - index
+            Shell.cmd("echo $level > $path").exec()
+        }.onFailure {
+            Log.e(TAG, "writeMtkGpuMinFreq: ${it.message}", it)
+        }
+    }
 
     fun readMtkGpuMaxFreq(): String = runCatching {
         val freqs = readMtkGpuAvailableFreq()
@@ -367,10 +450,18 @@ object SoCUtils {
     }
 
     fun getMtkGpuUsage(context: Context): String = runCatching {
+        // gpufreq_var_dump exposes the same gpu_loading value used by the
+        // MediaTek DVFS code. Prefer it over the GED aggregate line.
+        val varDump = Shell.cmd("cat $MTK_GPU_VAR_DUMP").exec()
+        if (varDump.isSuccess) {
+            val loading = varDump.out.asSequence()
+                .mapNotNull { Regex("gpu_loading\\s*=\\s*(\\d+)").find(it)?.groupValues?.getOrNull(1)?.toIntOrNull() }
+                .firstOrNull()
+            if (loading != null) return loading.coerceIn(0, 100).toString()
+        }
+
         val result = Shell.cmd("cat $MTK_GPU_UTILIZATION").exec()
         if (!result.isSuccess) return context.getString(R.string.unknown)
-        // GED exposes utilization as whitespace-separated values. The first value
-        // is the GPU loading value used by the MTK GED interface.
         val value = result.out.asSequence()
             .flatMap { it.trim().split("\\s+".toRegex()).asSequence() }
             .mapNotNull { it.toIntOrNull() }
@@ -380,6 +471,14 @@ object SoCUtils {
         Log.e(TAG, "getMtkGpuUsage: ${it.message}", it)
         context.getString(R.string.unknown)
     }
+
+    /**
+     * GPU temperature is intentionally reported as unavailable on this
+     * device. Its MediaTek thermal driver exposes CPU/AP, battery, PMIC,
+     * PA, DCTM and image-sensor zones, but no live MFG/GPU temperature
+     * sensor. Never substitute CPU/AP temperature for GPU temperature.
+     */
+    fun getMtkGpuTemperature(context: Context): String = "N/A"
 
     fun readAvailableFreqGPU(filePath: String): List<String> = runCatching {
         val result = Shell.cmd("cat $filePath").exec()

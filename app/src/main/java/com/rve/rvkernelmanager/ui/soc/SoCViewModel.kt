@@ -301,7 +301,11 @@ class SoCViewModel(application: Application) : AndroidViewModel(application) {
         } else {
             Utils.getTemp(context, SoCUtils.CPU_TEMP)
         }
-        _gpuTemp.value = Utils.getTemp(context, SoCUtils.GPU_TEMP)
+        _gpuTemp.value = if (SoCUtils.isMtkGpu()) {
+            SoCUtils.getMtkGpuTemperature(context)
+        } else {
+            Utils.getTemp(context, SoCUtils.GPU_TEMP)
+        }
         _gpuUsage.value = SoCUtils.getGpuUsage(context)
     }
 
@@ -389,10 +393,12 @@ class SoCViewModel(application: Application) : AndroidViewModel(application) {
 
     private fun updateGPUFreq(target: String, selectedFreq: String) {
         if (SoCUtils.isMtkGpu()) {
-            // MTK GED exposes a writable maximum-frequency ceiling as an OPP index.
-            // It does not expose a true minimum-frequency floor on this interface,
-            // so never misuse custom_boost_gpu_freq as a fake minimum.
-            if (target == "max") {
+            // This device exposes both real GED controls:
+            // custom_boost_gpu_freq = minimum-frequency floor
+            // custom_upbound_gpu_freq = maximum-frequency ceiling
+            if (target == "min") {
+                SoCUtils.writeMtkGpuMinFreq(selectedFreq)
+            } else {
                 SoCUtils.writeMtkGpuMaxFreq(selectedFreq)
             }
             _gpuState.value = _gpuState.value.copy(

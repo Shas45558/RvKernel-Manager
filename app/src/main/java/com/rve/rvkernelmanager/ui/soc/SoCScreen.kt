@@ -581,36 +581,52 @@ fun GPUMonitorCard(viewModel: SoCViewModel) {
                             horizontalAlignment = Alignment.CenterHorizontally,
                             verticalArrangement = Arrangement.spacedBy(8.dp),
                         ) {
-                            Crossfade(
-                                targetState = gpuTemp.toIntOrNull() ?: 0,
-                                animationSpec = tween(durationMillis = 500),
-                            ) { temp ->
+                            if (gpuTemp.toIntOrNull() != null) {
+                                Crossfade(
+                                    targetState = gpuTemp.toInt(),
+                                    animationSpec = tween(durationMillis = 500),
+                                ) { temp ->
+                                    Box(
+                                        modifier = Modifier
+                                            .clip(CircleShape)
+                                            .background(MaterialTheme.colorScheme.primaryContainer)
+                                            .padding(4.dp),
+                                        contentAlignment = Alignment.Center,
+                                    ) {
+                                        if (temp >= 60) {
+                                            Icon(
+                                                painter = painterResource(materialsymbols_ic_emergency_heat_rounded_filled),
+                                                tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                                                contentDescription = null,
+                                            )
+                                        } else if (temp >= 50) {
+                                            Icon(
+                                                painter = painterResource(materialsymbols_ic_mode_heat_rounded_filled),
+                                                tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                                                contentDescription = null,
+                                            )
+                                        } else {
+                                            Icon(
+                                                painter = painterResource(materialsymbols_ic_mode_cool_rounded_filled),
+                                                tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                                                contentDescription = null,
+                                            )
+                                        }
+                                    }
+                                }
+                            } else {
                                 Box(
                                     modifier = Modifier
                                         .clip(CircleShape)
-                                        .background(MaterialTheme.colorScheme.primaryContainer)
+                                        .background(MaterialTheme.colorScheme.surfaceContainerHighest)
                                         .padding(4.dp),
                                     contentAlignment = Alignment.Center,
                                 ) {
-                                    if (temp >= 60) {
-                                        Icon(
-                                            painter = painterResource(materialsymbols_ic_emergency_heat_rounded_filled),
-                                            tint = MaterialTheme.colorScheme.onPrimaryContainer,
-                                            contentDescription = null,
-                                        )
-                                    } else if (temp >= 50) {
-                                        Icon(
-                                            painter = painterResource(materialsymbols_ic_mode_heat_rounded_filled),
-                                            tint = MaterialTheme.colorScheme.onPrimaryContainer,
-                                            contentDescription = null,
-                                        )
-                                    } else {
-                                        Icon(
-                                            painter = painterResource(materialsymbols_ic_mode_cool_rounded_filled),
-                                            tint = MaterialTheme.colorScheme.onPrimaryContainer,
-                                            contentDescription = null,
-                                        )
-                                    }
+                                    Text(
+                                        text = "—",
+                                        style = MaterialTheme.typography.titleMedium,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    )
                                 }
                             }
                             Text(
@@ -1941,7 +1957,7 @@ fun GPUCard(viewModel: SoCViewModel) {
                                 bottomEnd = 8.dp,
                             ),
                         ),
-                        enabled = !isMtkGpu,
+                        enabled = !isMtkGpu || SoCUtils.isMtkGpuMinFreqWritable(),
                         onClick = { openAMNF = true },
                     ) {
                         Row(
