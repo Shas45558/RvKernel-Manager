@@ -3,11 +3,13 @@ name: Build RvKernel Manager
 on:
   workflow_dispatch:
   push:
-    branches: [ main ]
+    branches:
+      - main
 
 jobs:
   build:
     runs-on: ubuntu-latest
+
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -22,13 +24,35 @@ jobs:
       - name: Make gradlew executable
         run: chmod +x gradlew
 
-      - name: Build debug APK
-        run: ./gradlew assembleRelease --stacktrace
+      - name: Create temporary release keystore
+        run: |
+          keytool -genkeypair \
+            -v \
+            -keystore "$RUNNER_TEMP/release.keystore" \
+            -storepass android \
+            -keypass android \
+            -alias release \
+            -keyalg RSA \
+            -keysize 2048 \
+            -validity 10000 \
+            -dname "CN=RvKernel Manager, OU=Android, O=RvKernel, L=Unknown, ST=Unknown, C=US"
 
-      - name: Upload APK
+      - name: Build release APK
+        run: ./gradlew assembleRelease --stacktrace
+        env:
+          RELEASE_STORE_FILE: ${{ runner.temp }}/release.keystore
+          RELEASE_STORE_PASSWORD: android
+          RELEASE_KEY_ALIAS: release
+          RELEASE_KEY_PASSWORD: android
+
+      - name: Find APK
+        run: |
+          echo "Built APKs:"
+          find app/build/outputs/apk/release -type f -name "*.apk" -print
+
+      - name: Upload release APK
         uses: actions/upload-artifact@v4
         with:
-          name: RvKernel-Manager-MTK-GPU-debug
-          path: app/build/outputs/apk/debug/*.apk
+          name: RvKernel-Manager-MTK-GPU-release
+          path: app/build/outputs/apk/release/*.apk
           if-no-files-found: error
-          
