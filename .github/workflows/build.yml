@@ -37,13 +37,18 @@ jobs:
             -validity 10000 \
             -dname "CN=RvKernel Manager, OU=Android, O=RvKernel, L=Unknown, ST=Unknown, C=US"
 
+          test -f "$RUNNER_TEMP/release.keystore"
+          echo "Keystore created successfully."
+
       - name: Build release APK
-        run: ./gradlew assembleRelease --stacktrace
         env:
           RELEASE_STORE_FILE: ${{ runner.temp }}/release.keystore
           RELEASE_STORE_PASSWORD: android
           RELEASE_KEY_ALIAS: release
           RELEASE_KEY_PASSWORD: android
+        run: |
+          ./gradlew clean
+          ./gradlew assembleRelease --stacktrace
 
       - name: Find APK
         run: |
