@@ -152,6 +152,9 @@ class SoCViewModel(application: Application) : AndroidViewModel(application) {
     private val _cpu0State = MutableStateFlow(CPUState.EMPTY)
     val cpu0State: StateFlow<CPUState> = _cpu0State
 
+    private val _cpuCoreStates = MutableStateFlow<List<SoCUtils.CpuCoreState>>(emptyList())
+    val cpuCoreStates: StateFlow<List<SoCUtils.CpuCoreState>> = _cpuCoreStates
+
     private val _cpuUsage = MutableStateFlow("N/A")
     val cpuUsage: StateFlow<String> = _cpuUsage
 
@@ -236,6 +239,7 @@ class SoCViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     private fun loadCPUData() {
+        _cpuCoreStates.value = SoCUtils.readCpuCoreStates()
         _cpu0State.value = loadClusterState(ClusterConfig.Little)
 
         detectedBigClusterConfig = detectBigClusterConfig()
@@ -345,6 +349,13 @@ class SoCViewModel(application: Application) : AndroidViewModel(application) {
             availableFreq = availableFreq,
             availableGov = SoCUtils.readAvailableGovCPU(config.availableGovPath),
         )
+    }
+
+    fun setCpuCoreOnline(cpu: Int, online: Boolean) {
+        viewModelScope.launch(Dispatchers.IO) {
+            SoCUtils.setCpuCoreOnline(cpu, online)
+            _cpuCoreStates.value = SoCUtils.readCpuCoreStates()
+        }
     }
 
     fun updateFreq(target: String, selectedFreq: String, cluster: String) {

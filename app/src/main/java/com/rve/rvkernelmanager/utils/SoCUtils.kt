@@ -81,6 +81,46 @@ object SoCUtils {
     const val AVAILABLE_GOV_CPU7 = "/sys/devices/system/cpu/cpufreq/policy7/scaling_available_governors"
 
     const val CPU_INPUT_BOOST_MS = "/sys/devices/system/cpu/cpu_boost/input_boost_ms"
+
+    data class CpuCoreState(val cpu: Int, val online: Boolean, val controllable: Boolean)
+
+    fun readCpuCoreStates(): List<CpuCoreState> = runCatching {
+        val cpuDirs = File("/sys/devices/system/cpu").listFiles()
+            ?.mapNotNull { file ->
+                val n = file.name.removePrefix("cpu").toIntOrNull()
+                if (file.isDirectory && n != null) n else null
+            }
+            ?.sorted()
+            ?: emptyList()
+
+        cpuDirs.map { cpu ->
+            val onlineFile = File("/sys/devices/system/cpu/cpu$cpu/online")
+            val online = if (cpu == 0 && !onlineFile.exists()) {
+                true
+            } else {
+                onlineFile.readText().trim() == "1"
+            }
+            CpuCoreState(cpu, online, onlineFile.exists())
+        }
+    }.getOrElse {
+        Log.e(TAG, "readCpuCoreStates: ${it.message}", it)
+        emptyList()
+    }
+
+    fun isCpuCoreOnlineWritable(cpu: Int): Boolean = runCatching {
+        val path = "/sys/devices/system/cpu/cpu$cpu/online"
+        File(path).exists() && Shell.cmd("test -w $path").exec().isSuccess
+    }.getOrDefault(false)
+
+    fun setCpuCoreOnline(cpu: Int, online: Boolean): Boolean = runCatching {
+        if (cpu == 0) return false
+        val path = "/sys/devices/system/cpu/cpu$cpu/online"
+        if (!File(path).exists()) return false
+        val result = Shell.cmd("echo ${if (online) 1 else 0} > $path").exec()
+        result.isSuccess
+    }.onFailure {
+        Log.e(TAG, "setCpuCoreOnline cpu$cpu: ${it.message}", it)
+    }.getOrDefault(false)
     const val CPU_SCHED_BOOST_ON_INPUT = "/sys/devices/system/cpu/cpu_boost/sched_boost_on_input"
 
     const val MIN_FREQ_GPU = "/sys/class/kgsl/kgsl-3d0/min_clock_mhz"

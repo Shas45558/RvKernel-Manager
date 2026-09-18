@@ -146,6 +146,7 @@ import com.rve.rvkernelmanager.utils.SoCUtils
 
 sealed interface SocCardType {
     data object CpuMonitor : SocCardType
+    data object CpuCoreControl : SocCardType
     data object GpuMonitor : SocCardType
     data object CpuLittleCluster : SocCardType
     data object CpuBigCluster : SocCardType
@@ -168,6 +169,7 @@ fun SoCScreen(viewModel: SoCViewModel = viewModel(), navController: NavControlle
     val socCards = remember(hasBigCluster, hasPrimeCluster, hasCpuInputBoostMs, hasCpuSchedBoostOnInput) {
         buildList {
             add(SocCardType.CpuMonitor)
+            add(SocCardType.CpuCoreControl)
             add(SocCardType.GpuMonitor)
             add(SocCardType.CpuLittleCluster)
 
@@ -230,6 +232,7 @@ fun SoCScreen(viewModel: SoCViewModel = viewModel(), navController: NavControlle
 
                     when (cardType) {
                         SocCardType.CpuMonitor -> CPUMonitorCard(viewModel)
+                        SocCardType.CpuCoreControl -> CPUCoreControlCard(viewModel)
                         SocCardType.GpuMonitor -> GPUMonitorCard(viewModel)
                         SocCardType.CpuLittleCluster -> CPULittleClusterCard(viewModel)
                         SocCardType.CpuBigCluster -> BigClusterCard(viewModel)
@@ -647,6 +650,46 @@ fun GPUMonitorCard(viewModel: SoCViewModel) {
                 title = stringResource(R.string.current_frequencies),
                 body = if (gpuState.currentFreq.isEmpty()) stringResource(R.string.na) else "${gpuState.currentFreq} MHz",
             )
+        }
+    }
+}
+
+@Composable
+fun CPUCoreControlCard(viewModel: SoCViewModel) {
+    var expanded by rememberSaveable { mutableStateOf(false) }
+    val cores by viewModel.cpuCoreStates.collectAsStateWithLifecycle()
+
+    ExpandableCard(
+        icon = painterResource(materialsymbols_ic_memory_rounded_filled),
+        text = "CPU Core Control",
+        expanded = expanded,
+        onClick = { expanded = !expanded },
+    ) {
+        AnimatedVisibility(
+            visible = expanded,
+            enter = fadeIn(animationSpec = MaterialTheme.motionScheme.slowEffectsSpec()) +
+                    expandVertically(animationSpec = MaterialTheme.motionScheme.slowSpatialSpec()),
+            exit = fadeOut(animationSpec = MaterialTheme.motionScheme.slowEffectsSpec()) +
+                    shrinkVertically(animationSpec = MaterialTheme.motionScheme.slowSpatialSpec()),
+        ) {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                if (cores.isEmpty()) {
+                    Text("CPU core information unavailable")
+                } else {
+                    cores.forEach { core ->
+                        SwitchOutlinedCard(
+                            icon = materialsymbols_ic_memory_rounded_filled,
+                            text = "CPU ${core.cpu}",
+                            checked = core.online,
+                            onCheckedChange = { enabled ->
+                                if (core.controllable) {
+                                    viewModel.setCpuCoreOnline(core.cpu, enabled)
+                                }
+                            },
+                        )
+                    }
+                }
+            }
         }
     }
 }
