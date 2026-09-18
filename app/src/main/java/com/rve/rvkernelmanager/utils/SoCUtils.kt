@@ -281,11 +281,33 @@ object SoCUtils {
 
     fun readMtkGpuMinFreq(): String = readMtkGpuAvailableFreq().minByOrNull { it.toIntOrNull() ?: Int.MAX_VALUE } ?: "0"
 
-    fun readMtkGpuMaxFreq(): String = readMtkGpuAvailableFreq().maxByOrNull { it.toIntOrNull() ?: 0 } ?: "0"
+    fun readMtkGpuMaxFreq(): String = runCatching {
+        val freqs = readMtkGpuAvailableFreq()
+        if (freqs.isEmpty()) return "0"
+
+        // GED stores the ceiling as a "frequency level" where 0 means the
+        // lowest OPP and (table_size - 1) means the highest OPP. The actual
+        // gpufreq table, however, is indexed in the opposite direction:
+        // index 0 = highest frequency, last index = lowest frequency.
+        val path = getMtkGpuUpboundPath()
+        if (path != null) {
+            val level = Shell.cmd("cat $path").exec().out.firstOrNull()?.trim()?.toIntOrNull()
+            if (level != null) {
+                val index = (freqs.lastIndex - level).coerceIn(0, freqs.lastIndex)
+                return freqs[index]
+            }
+        }
+
+        freqs.maxByOrNull { it.toIntOrNull() ?: 0 } ?: "0"
+    }.getOrElse {
+        Log.e(TAG, "readMtkGpuMaxFreq: ${it.message}", it)
+        "0"
+    }
 
     /**
-     * GED's custom_upbound_gpu_freq is an OPP index, not a frequency in MHz.
-     * Different MTK trees expose it through different debugfs aliases.
+     * GED's custom_upbound_gpu_freq is a frequency level, not the same index
+     * used by the gpufreq OPP table. Different MTK trees expose it through
+     * different debugfs aliases.
      */
     fun getMtkGpuUpboundPath(): String? = MTK_GPU_UPBOUND_PATHS.firstOrNull {
         Shell.cmd("test -e $it").exec().isSuccess
@@ -302,10 +324,46 @@ object SoCUtils {
             val index = freqs.indexOfFirst { it.toIntOrNull() == selected }
             if (index < 0) return
             val path = getMtkGpuUpboundPath() ?: return
-            Shell.cmd("echo $index > $path").exec()
+
+            // GED's ceiling writer converts: frequency_level -> OPP index
+            // with: opp_index = (table_size - 1) - frequency_level.
+            // Therefore invert that mapping before writing. Without this
+            // inversion, selecting 950 MHz writes level 0 and clamps the GPU
+            // to the lowest OPP (299 MHz).
+            val level = freqs.lastIndex - index
+            Shell.cmd("echo $level > $path").exec()
         }.onFailure {
             Log.e(TAG, "writeMtkGpuMaxFreq: ${it.message}", it)
         }
+    }
+
+    /**
+     * Find the AP/CPU thermal sensor used by MediaTek kernels. thermal_zone0
+     * is not guaranteed to be the CPU sensor on MT6768, so scan the zone type
+     * names first and keep the old path as a fallback.
+     */
+    fun getMtkCpuTemperature(context: Context): String = runCatching {
+        val result = Shell.cmd(
+            "for z in /sys/class/thermal/thermal_zone*; do " +
+                "[ -r \$z/type ] || continue; " +
+                "t=\$(cat \$z/type 2>/dev/null); " +
+                "case \"\$t\" in *cpu*|*CPU*|*mtktscpu*|*ap*|*AP*) " +
+                "v=\$(cat \$z/temp 2>/dev/null); " +
+                "case \"\$v\" in ''|'0') continue;; esac; " +
+                "echo \"\$v\"; break;; esac; " +
+                "done"
+        ).exec()
+        val raw = result.out.firstOrNull()?.trim()?.toLongOrNull()
+        if (result.isSuccess && raw != null) {
+            return "%.1f".format(raw / 1000.0)
+        }
+
+        val fallback = Utils.readFile(CPU_TEMP).toLongOrNull()
+        fallback?.let { return "%.1f".format(it / 1000.0) }
+        context.getString(R.string.unknown)
+    }.getOrElse {
+        Log.e(TAG, "getMtkCpuTemperature: ${it.message}", it)
+        context.getString(R.string.unknown)
     }
 
     fun getMtkGpuUsage(context: Context): String = runCatching {

@@ -296,7 +296,11 @@ class SoCViewModel(application: Application) : AndroidViewModel(application) {
 
     private fun loadTemperatureAndUsageData(context: Context) {
         _cpuUsage.value = SoCUtils.getCpuUsage(context)
-        _cpuTemp.value = Utils.getTemp(context, SoCUtils.CPU_TEMP)
+        _cpuTemp.value = if (SoCUtils.isMtkGpu()) {
+            SoCUtils.getMtkCpuTemperature(context)
+        } else {
+            Utils.getTemp(context, SoCUtils.CPU_TEMP)
+        }
         _gpuTemp.value = Utils.getTemp(context, SoCUtils.GPU_TEMP)
         _gpuUsage.value = SoCUtils.getGpuUsage(context)
     }
