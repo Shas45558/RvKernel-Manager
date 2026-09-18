@@ -1,18 +1,13 @@
-name: Build Release APK
+name: Build RvKernel Manager
 
 on:
   workflow_dispatch:
   push:
-    tags:
-      - "v*"
-
-permissions:
-  contents: write
+    branches: [ main ]
 
 jobs:
-  release:
+  build:
     runs-on: ubuntu-latest
-
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -21,25 +16,19 @@ jobs:
         uses: actions/setup-java@v4
         with:
           distribution: temurin
-          java-version: "21"
+          java-version: '21'
           cache: gradle
 
       - name: Make gradlew executable
         run: chmod +x gradlew
 
-      - name: Build Release APK
+      - name: Build debug APK
         run: ./gradlew assembleRelease --stacktrace
 
-      - name: Find APK
-        id: apk
-        run: |
-          APK=$(find app/build/outputs/apk/release -name "*.apk" | head -n 1)
-          echo "apk=$APK" >> "$GITHUB_OUTPUT"
-
-      - name: Create GitHub Release
-        uses: softprops/action-gh-release@v2
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
         with:
-          tag_name: ${{ github.ref_name }}
-          name: RvKernel Manager ${{ github.ref_name }}
-          generate_release_notes: true
-          files: ${{ steps.apk.outputs.apk }}
+          name: RvKernel-Manager-MTK-GPU-debug
+          path: app/build/outputs/apk/debug/*.apk
+          if-no-files-found: error
+          
