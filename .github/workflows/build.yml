@@ -19,7 +19,6 @@ jobs:
         with:
           distribution: temurin
           java-version: '21'
-          cache: gradle
 
       - name: Make gradlew executable
         run: chmod +x gradlew
@@ -40,15 +39,15 @@ jobs:
           test -f "$RUNNER_TEMP/release.keystore"
           echo "Keystore created successfully."
 
-      - name: Build release APK
+      - name: Clean build release APK
         env:
           RELEASE_STORE_FILE: ${{ runner.temp }}/release.keystore
           RELEASE_STORE_PASSWORD: android
           RELEASE_KEY_ALIAS: release
           RELEASE_KEY_PASSWORD: android
         run: |
-          ./gradlew clean
-          ./gradlew assembleRelease --stacktrace
+          ./gradlew clean --no-build-cache --no-configuration-cache --no-daemon
+          ./gradlew assembleRelease --no-build-cache --no-configuration-cache --no-daemon --stacktrace
 
       - name: Find APK
         run: |
