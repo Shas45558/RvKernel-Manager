@@ -23,7 +23,7 @@
     <!-- MainActivity -->
     <string name="waiting_root">ожидание предоставления root-прав…</string>
     <string name="root_required_title">Требуются Root права</string>
-    <string name="root_required_desc">RvKernel Manager требуются права суперпользователя</string>
+    <string name="root_required_desc">SDKM требуются права суперпользователя</string>
 
     <!-- AppBar -->
     <string name="source_code">Исходный код</string>
@@ -131,7 +131,7 @@
     <string name="soc_polling_summary">Установите, как часто обновляются данные SoC (в секундах)</string>
     <string name="polling_dialog_desc">Установите интервал опроса для данных SoC (1–30 секунд)</string>
     <string name="polling_hint">Интервал (секунды)</string>
-    <string name="app_version">Версия RvKernel Manager</string>
+    <string name="app_version">Версия SDKM</string>
 
     <!-- Contributor Screen -->
     <string name="contributions">вкладов</string>

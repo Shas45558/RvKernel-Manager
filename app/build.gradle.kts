@@ -25,7 +25,7 @@ plugins {
 }
 
 android {
-    namespace = "com.rve.rvkernelmanager"
+    namespace = "com.sdkm.manager"
     compileSdk = 36
     buildToolsVersion = "36.1.0"
     ndkVersion = "29.0.14206865"
@@ -75,7 +75,7 @@ android {
     }
 
     defaultConfig {
-        applicationId = "com.rve.rvkernelmanager"
+        applicationId = "com.sdkm.manager"
         minSdk = 31
         targetSdk = 36
         versionCode = 131

@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name" translatable="false">RvKernel Manager</string>
+    <string name="app_name" translatable="false">SDKM</string>
 
     <string name="nav_home">Beranda</string>
     <string name="nav_soc">SoC</string>
@@ -26,7 +26,7 @@
 
     <string name="waiting_root">menunggu akses root diberikan…</string>
     <string name="root_required_title">Akses root diperlukan</string>
-    <string name="root_required_desc">RvKernel Manager memerlukan akses root</string>
+    <string name="root_required_desc">SDKM memerlukan akses root</string>
 
     <string name="settings">Pengaturan</string>
     <string name="reboot_menu">Menu mulai ulang</string>
@@ -48,12 +48,12 @@
 
     <string name="about_app_section">Tentang Aplikasi</string>
     <string name="contributors">Kontributor</string>
-    <string name="contributors_desc">Lihat siapa yang berkontribusi dalam pengembangan RvKernel Manager</string>
+    <string name="contributors_desc">Lihat siapa yang berkontribusi dalam pengembangan SDKM</string>
     <string name="source_code">Kode sumber</string>
     <string name="source_code_desc">Lihat kode di balik layar aplikasi ini</string>
     <string name="telegram_group">Grup Telegram</string>
     <string name="telegram_group_desc">Butuh bantuan atau punya saran? Bergabunglah di sini!</string>
-    <string name="app_version">Versi RvKernel Manager</string>
+    <string name="app_version">Versi SDKM</string>
 
     <string name="battery_monitor">Monitor Baterai</string>
     <string name="voltage">Tegangan baterai</string>

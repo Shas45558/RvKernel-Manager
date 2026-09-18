@@ -10,7 +10,7 @@ This directory contains template scripts for different kernel performance profil
 
 ## Usage
 
-- Move all profiles (powersave.sh, balance.sh, performance.sh) to Internal-storage/RvKernel-Manager/kernel-profile/ and then RvKernel Manager app will load these profiles.
+- Move all profiles (powersave.sh, balance.sh, performance.sh) to Internal-storage/SDKM/kernel-profile/ and then SDKM app will load these profiles.
 
 ## Customization
 

@@ -27,4 +27,4 @@ setProfile() {
     # You can also add other things below here, such as VM, ZRAM, and other kernel parameters.
 }
 
-{ setProfile; echo "[$(date '+%Y-%m-%d %H:%M:%S')] Performance mode applied"; } 2>&1 | tee -a /sdcard/RvKernel-Manager/kernel-profile/kernel-profile.log
+{ setProfile; echo "[$(date '+%Y-%m-%d %H:%M:%S')] Performance mode applied"; } 2>&1 | tee -a /sdcard/SDKM/kernel-profile/kernel-profile.log

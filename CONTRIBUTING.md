@@ -1,13 +1,13 @@
 # Contribution Guidelines
 
-We welcome contributions to RvKernel Manager! Whether it's bug fixes, new features, or documentation improvements, your help is greatly appreciated.
+We welcome contributions to SDKM! Whether it's bug fixes, new features, or documentation improvements, your help is greatly appreciated.
 
 ## How to Contribute
 
-1.  **Fork the Repository:** Start by forking the RvKernel Manager repository to your GitHub account.
+1.  **Fork the Repository:** Start by forking the SDKM repository to your GitHub account.
     ```shell
-    git clone https://github.com/Rve27/RvKernel-Manager.git
-    cd RvKernel-Manager
+    git clone https://github.com/Shas45558/SDK_Manager.git
+    cd SDKM
     ```
 2.  **Create a Branch:** Create a new branch for your feature or bug fix.  Use a descriptive name.
     ```shell

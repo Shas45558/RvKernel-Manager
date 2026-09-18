@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name" translatable="false">Shas Dream Kernel Manager</string>
+    <string name="app_name" translatable="false">SDKM</string>
 
     <!-- Navigation -->
     <string name="nav_home">Home</string>
@@ -29,7 +29,7 @@
     <!-- MainActivity -->
     <string name="waiting_root">waiting for root access to be granted…</string>
     <string name="root_required_title">Root access required</string>
-    <string name="root_required_desc">Shas Dream Kernel Manager requires root access</string>
+    <string name="root_required_desc">SDKM requires root access</string>
 
     <!-- AppBar -->
     <string name="settings">Settings</string>
@@ -47,18 +47,20 @@
     <string name="android_version">Android version</string>
     <string name="ram">RAM</string>
     <string name="cpu">CPU</string>
+    <string name="cpu_core_control">CPU Core Control</string>
+    <string name="cpu_core_unavailable">CPU core information unavailable</string>
     <string name="gpu">GPU</string>
     <string name="wireguard">WireGuard</string>
     <string name="kernel">Kernel</string>
 
     <string name="about_app_section">About App</string>
     <string name="contributors">Contributors</string>
-    <string name="contributors_desc">See who has contributed to the development of Shas Dream Kernel Manager</string>
+    <string name="contributors_desc">See who has contributed to the development of SDKM</string>
     <string name="source_code">Source code</string>
     <string name="source_code_desc">See how the magic happens under the hood</string>
     <string name="telegram_group">Telegram group</string>
     <string name="telegram_group_desc">Need help or have a suggestion? Join us here!</string>
-    <string name="app_version">Shas Dream Kernel Manager version</string>
+    <string name="app_version">SDKM version</string>
 
     <!-- Battery Screen -->
     <string name="battery_monitor">Battery Monitor</string>

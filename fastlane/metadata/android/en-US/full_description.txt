@@ -1,4 +1,4 @@
-<p>Unlock the true potential of your Android device with RvKernel Manager, a powerful and user-friendly open-source tool for managing your kernel settings. This app provides comprehensive control over your device's kernel parameters.</p>
+<p>Unlock the true potential of your Android device with SDKM, a powerful and user-friendly open-source tool for managing your kernel settings. This app provides comprehensive control over your device's kernel parameters.</p>
 
 <p>Fine-tune your device for peak performance, maximum battery life, or a perfect balance between the two.</p>
 

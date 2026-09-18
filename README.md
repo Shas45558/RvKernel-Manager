@@ -1,24 +1,24 @@
 <div align="center">
-  <img src="https://raw.githubusercontent.com/Rve27/RvKernel-Manager/main/.github/banner.png" width="100%" alt="Banner">
+  <img src="https://raw.githubusercontent.com/Shas45558/SDKM/main/.github/banner.png" width="100%" alt="Banner">
 
-# RvKernel Manager
+# SDKM
 </div>
 <p align="center">
-<a href="https://github.com/Rve27/RvKernel-Manager/releases"><img src="https://img.shields.io/github/downloads/Rve27/RvKernel-Manager/total?color=%238B0425&logo=android&logoColor=%23fff&style=for-the-badge" alt="Downloads"></a>
+<a href="https://github.com/Shas45558/SDK_Manager/releases"><img src="https://img.shields.io/github/downloads/Shas45558/SDKM/total?color=%238B0425&logo=android&logoColor=%23fff&style=for-the-badge" alt="Downloads"></a>
 </p>
 <div align="center">
 
 <p><strong>Take full control of your device's kernel. Tune performance, battery life, and more!</strong></p>
 <br>
-<p>Unlock the true potential of your Android device with <strong>RvKernel Manager</strong>, a powerful and user-friendly open-source tool for managing your kernel settings. This app provides a clean interface to tweak and monitor a wide range of kernel parameters.</p>
+<p>Unlock the true potential of your Android device with <strong>SDKM</strong>, a powerful and user-friendly open-source tool for managing your kernel settings. This app provides a clean interface to tweak and monitor a wide range of kernel parameters.</p>
 <br>
 <p>Fine-tune your device for peak performance, maximum battery life, or a perfect balance between the two.</p>
 
 ## Download
 
-[<img src="https://gitlab.com/IzzyOnDroid/repo/-/raw/master/assets/IzzyOnDroid.png" alt="Get it on IzzyOnDroid" height="80">](https://apt.izzysoft.de/fdroid/index/apk/com.rve.rvkernelmanager)
-[<img src="https://raw.githubusercontent.com/andOTP/andOTP/master/assets/badges/get-it-on-github.png" alt="Get it on GitHub" height="80">](https://github.com/Rve27/RvKernel-Manager/releases)
-[<img src="https://www.openapk.net/images/openapk-badge.png" alt="Get it on OpenAPK" height="80">](https://www.openapk.net/rvkernel-manager/com.rve.rvkernelmanager/)
+[<img src="https://gitlab.com/IzzyOnDroid/repo/-/raw/master/assets/IzzyOnDroid.png" alt="Get it on IzzyOnDroid" height="80">](https://apt.izzysoft.de/fdroid/index/apk/com.sdkm.manager)
+[<img src="https://raw.githubusercontent.com/andOTP/andOTP/master/assets/badges/get-it-on-github.png" alt="Get it on GitHub" height="80">](https://github.com/Shas45558/SDK_Manager/releases)
+[<img src="https://www.openapk.net/images/openapk-badge.png" alt="Get it on OpenAPK" height="80">](https://github.com/Shas45558/SDK_Manager/releases)
 </div>
 
 ## ✨ Features
@@ -72,15 +72,15 @@ Fine-tune kernel settings for optimal performance:
 
 ## Contributing
 
-Contributions to RvKernel Manager are welcome!  Please see [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines on how to contribute.
+Contributions to SDKM are welcome!  Please see [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines on how to contribute.
 
 ## Telegram
 
 - [Channel](https://t.me/rveproject)
-- [Group](https://t.me/rve_enterprises)
+- [Group](https://t.me/ocmt6768)
 
 ## Credits
-- RvKernel Manager icon & banner by [Alister Grey](https://t.me/allisterhellground)
+- SDKM icon & banner by [Alister Grey](https://t.me/allisterhellground)
 
 ## License
 
