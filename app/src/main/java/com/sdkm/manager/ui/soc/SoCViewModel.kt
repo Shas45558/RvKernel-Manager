@@ -262,6 +262,12 @@ class SoCViewModel(application: Application) : AndroidViewModel(application) {
 
     private fun loadGPUData() {
         val isMtk = SoCUtils.isMtkGpu()
+        if (isMtk) {
+            // Repair a previously crossed GED min/max state before displaying
+            // the controls. This prevents "Min 1200 / Max 299" and the
+            // resulting 299 MHz clamp on this MT6768 implementation.
+            SoCUtils.normalizeMtkGpuLimits()
+        }
         val gpuState = if (isMtk) {
             GPUState(
                 minFreq = SoCUtils.readMtkGpuMinFreq(),

@@ -449,6 +449,39 @@ object SoCUtils {
         getMtkGpuUpboundPath()?.let { Shell.cmd("test -w $it").exec().isSuccess } == true
     }.getOrDefault(false)
 
+    /**
+     * Keep the two GED frequency limits in a valid order.
+     *
+     * On this MT6768 GED implementation the boost limit is the minimum
+     * frequency floor and the upbound limit is the maximum ceiling. If a
+     * previous build/user action left them crossed (min > max), GED clamps
+     * DVFS to the lower ceiling. Repair the crossed state once so the UI and
+     * kernel agree: min <= max.
+     */
+    fun normalizeMtkGpuLimits(): Boolean = runCatching {
+        val min = readMtkGpuMinFreq().toIntOrNull() ?: return false
+        val max = readMtkGpuMaxFreq().toIntOrNull() ?: return false
+        if (min <= max) return true
+
+        val minPath = getMtkGpuBottomPath() ?: return false
+        val maxPath = getMtkGpuUpboundPath() ?: return false
+        if (!Shell.cmd("test -w $minPath").exec().isSuccess ||
+            !Shell.cmd("test -w $maxPath").exec().isSuccess
+        ) return false
+
+        // Move the lower value to the minimum-floor node and the higher value
+        // to the maximum-ceiling node. The writers perform the level/index
+        // conversion for the GED interface.
+        writeMtkGpuMinFreq(max.toString())
+        writeMtkGpuMaxFreq(min.toString())
+
+        readMtkGpuMinFreq().toIntOrNull() ?: return false
+        readMtkGpuMaxFreq().toIntOrNull() ?: return false
+        true
+    }.onFailure {
+        Log.e(TAG, "normalizeMtkGpuLimits: ${it.message}", it)
+    }.getOrDefault(false)
+
     fun writeMtkGpuMaxFreq(frequency: String) {
         runCatching {
             val freqs = readMtkGpuAvailableFreq()
