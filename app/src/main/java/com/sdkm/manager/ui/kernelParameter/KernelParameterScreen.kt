@@ -1102,13 +1102,9 @@ fun MemoryCard(viewModel: KernelParameterViewModel) {
     )
 
     val memory by viewModel.memory.collectAsStateWithLifecycle()
-    val zramResizeState by viewModel.zramResizeState.collectAsStateWithLifecycle()
-    val zramSizeOptions = listOf("1 GB", "2 GB", "3 GB", "4 GB", "5 GB", "6 GB")
     var swappiness by remember { mutableStateOf(memory.swappiness) }
     var dirtyRatio by remember { mutableStateOf(memory.dirtyRatio) }
 
-    // ZD = ZRAM Dialog
-    var openZD by remember { mutableStateOf(false) }
     // ZCD = ZRAM Compression Dialog
     var openZCD by remember { mutableStateOf(false) }
     // SD = Swappiness Dialog
@@ -1182,6 +1178,22 @@ fun MemoryCard(viewModel: KernelParameterViewModel) {
                                 color = MaterialTheme.colorScheme.onSurface,
                             )
                         }
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Text(
+                                text = stringResource(R.string.zram_size),
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                            Text(
+                                text = memory.zramSize,
+                                style = MaterialTheme.typography.titleMedium,
+                                color = MaterialTheme.colorScheme.onSurface,
+                            )
+                        }
                     }
                 }
 
@@ -1213,94 +1225,36 @@ fun MemoryCard(viewModel: KernelParameterViewModel) {
                     }
                 }
 
-                if (memory.hasZramSize || memory.hasSwappiness) {
-                    Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-                        AnimatedVisibility(
-                            visible = memory.hasZramSize,
-                            enter = fadeIn(
-                                animationSpec = MaterialTheme.motionScheme.slowEffectsSpec(),
-                            ) + expandVertically(
-                                animationSpec = MaterialTheme.motionScheme.slowSpatialSpec(),
-                            ),
-                            exit = fadeOut(
-                                animationSpec = MaterialTheme.motionScheme.slowEffectsSpec(),
-                            ) + shrinkVertically(
-                                animationSpec = MaterialTheme.motionScheme.slowSpatialSpec(),
-                            ),
-                            modifier = if (memory.hasSwappiness) Modifier.weight(1f) else Modifier,
+                if (memory.hasSwappiness) {
+                    AnimatedVisibility(
+                        visible = memory.hasSwappiness,
+                        enter = fadeIn(
+                            animationSpec = MaterialTheme.motionScheme.slowEffectsSpec(),
+                        ) + expandVertically(
+                            animationSpec = MaterialTheme.motionScheme.slowSpatialSpec(),
+                        ),
+                        exit = fadeOut(
+                            animationSpec = MaterialTheme.motionScheme.slowEffectsSpec(),
+                        ) + shrinkVertically(
+                            animationSpec = MaterialTheme.motionScheme.slowSpatialSpec(),
+                        ),
+                    ) {
+                        Button(
+                            contentPadding = PaddingValues(16.dp),
+                            shapes = ButtonDefaults.shapes(RoundedCornerShape(28.dp)),
+                            onClick = { openSD = true },
                         ) {
-                            Button(
-                                contentPadding = PaddingValues(16.dp),
-                                shapes = ButtonDefaults.shapes(
-                                    if (memory.hasSwappiness) {
-                                        RoundedCornerShape(
-                                            topStart = 28.dp,
-                                            topEnd = 8.dp,
-                                            bottomStart = 28.dp,
-                                            bottomEnd = 8.dp,
-                                        )
-                                    } else {
-                                        RoundedCornerShape(28.dp)
-                                    },
-                                ),
-                                onClick = { openZD = true },
-                            ) {
-                                Column(Modifier.fillMaxSize()) {
-                                    Text(
-                                        text = stringResource(R.string.zram_size),
-                                        style = MaterialTheme.typography.titleMedium,
-                                        color = MaterialTheme.colorScheme.onPrimary,
-                                    )
-                                    Text(
-                                        text = memory.zramSize,
-                                        style = MaterialTheme.typography.bodyMedium,
-                                        color = MaterialTheme.colorScheme.onPrimary,
-                                    )
-                                }
-                            }
-                        }
-                        AnimatedVisibility(
-                            visible = memory.hasSwappiness,
-                            enter = fadeIn(
-                                animationSpec = MaterialTheme.motionScheme.slowEffectsSpec(),
-                            ) + expandVertically(
-                                animationSpec = MaterialTheme.motionScheme.slowSpatialSpec(),
-                            ),
-                            exit = fadeOut(
-                                animationSpec = MaterialTheme.motionScheme.slowEffectsSpec(),
-                            ) + shrinkVertically(
-                                animationSpec = MaterialTheme.motionScheme.slowSpatialSpec(),
-                            ),
-                            modifier = if (memory.hasZramSize) Modifier.weight(1f) else Modifier,
-                        ) {
-                            Button(
-                                contentPadding = PaddingValues(16.dp),
-                                shapes = ButtonDefaults.shapes(
-                                    if (memory.hasSwappiness) {
-                                        RoundedCornerShape(
-                                            topStart = 8.dp,
-                                            topEnd = 28.dp,
-                                            bottomStart = 8.dp,
-                                            bottomEnd = 28.dp,
-                                        )
-                                    } else {
-                                        RoundedCornerShape(28.dp)
-                                    },
-                                ),
-                                onClick = { openSD = true },
-                            ) {
-                                Column(Modifier.fillMaxSize()) {
-                                    Text(
-                                        text = stringResource(R.string.swappiness),
-                                        style = MaterialTheme.typography.titleMedium,
-                                        color = MaterialTheme.colorScheme.onPrimary,
-                                    )
-                                    Text(
-                                        text = "${memory.swappiness}%",
-                                        style = MaterialTheme.typography.bodyMedium,
-                                        color = MaterialTheme.colorScheme.onPrimary,
-                                    )
-                                }
+                            Column(Modifier.fillMaxSize()) {
+                                Text(
+                                    text = stringResource(R.string.swappiness),
+                                    style = MaterialTheme.typography.titleMedium,
+                                    color = MaterialTheme.colorScheme.onPrimary,
+                                )
+                                Text(
+                                    text = "${memory.swappiness}%",
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = MaterialTheme.colorScheme.onPrimary,
+                                )
                             }
                         }
                     }
@@ -1373,132 +1327,6 @@ fun MemoryCard(viewModel: KernelParameterViewModel) {
                 }
             }
         }
-    }
-
-    when (val state = zramResizeState) {
-        is KernelParameterViewModel.ZramResizeState.Running -> {
-            AlertDialog(
-                onDismissRequest = {},
-                title = { Text("Applying ZRAM size") },
-                text = {
-                    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                        Text("Changing ZRAM to ${state.requestedSize}…")
-                        Text(
-                            "The app is disabling the old ZRAM swap, resetting its contents, resizing the ZRAM device, recreating the swap area, and enabling it again.",
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                    }
-                },
-                confirmButton = {},
-            )
-        }
-
-        is KernelParameterViewModel.ZramResizeState.Finished -> {
-            val result = state.result
-            AlertDialog(
-                onDismissRequest = { viewModel.dismissZramResizeResult() },
-                title = {
-                    Text(if (result.success) "ZRAM updated" else "ZRAM update failed")
-                },
-                text = {
-                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Text(
-                            if (result.success) {
-                                "Requested: ${result.requestedSize}\nApplied: ${result.actualSize}"
-                            } else {
-                                "Requested: ${result.requestedSize}\nApplied: ${result.actualSize}"
-                            },
-                        )
-                        HorizontalDivider()
-                        Text(
-                            "What happened",
-                            style = MaterialTheme.typography.titleSmall,
-                        )
-                        result.steps.forEach { step ->
-                            Text(
-                                step,
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            )
-                        }
-                        result.error?.let { error ->
-                            Text(
-                                "Reason: $error",
-                                color = MaterialTheme.colorScheme.error,
-                            )
-                        }
-                    }
-                },
-                confirmButton = {
-                    TextButton(onClick = { viewModel.dismissZramResizeResult() }) {
-                        Text("OK")
-                    }
-                },
-            )
-        }
-
-        KernelParameterViewModel.ZramResizeState.Idle -> Unit
-    }
-
-    if (openZD) {
-        AlertDialog(
-            onDismissRequest = { openZD = false },
-            title = {
-                Text(stringResource(R.string.zram_size))
-            },
-            text = {
-                LazyColumn(verticalArrangement = Arrangement.spacedBy((4).dp)) {
-                    itemsIndexed(zramSizeOptions) { index, size ->
-                        val shape = when (index) {
-                            0 ->
-                                (ButtonGroupDefaults.connectedMiddleButtonShapes().shape
-                                        as RoundedCornerShape)
-                                    .copy(
-                                        topStart = CornerSize(100),
-                                        topEnd = CornerSize(100)
-                                    )
-
-                            zramSizeOptions.lastIndex ->
-                                (ButtonGroupDefaults.connectedMiddleButtonShapes().shape
-                                        as RoundedCornerShape)
-                                    .copy(
-                                        bottomStart = CornerSize(100),
-                                        bottomEnd = CornerSize(100)
-                                    )
-
-                            else -> ButtonGroupDefaults.connectedMiddleButtonShapes().shape
-                        }
-
-                        ToggleButton(
-                            checked = size == memory.zramSize,
-                            onCheckedChange = {
-                                val sizeInGb = size.substringBefore(" GB").toInt()
-                                viewModel.updateZramSize(sizeInGb)
-                                openZD = false
-                            },
-                            shapes = ToggleButtonDefaults.shapes(
-                                shape = shape,
-                                checkedShape = ButtonGroupDefaults.connectedButtonCheckedShape,
-                            ),
-                            contentPadding = PaddingValues(16.dp),
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .semantics { role = Role.RadioButton },
-                        ) {
-                            Text(size)
-                        }
-                    }
-                }
-            },
-            confirmButton = {
-                TextButton(
-                    onClick = { openZD = false },
-                    shapes = ButtonDefaults.shapes(),
-                ) {
-                    Text(stringResource(R.string.cancel))
-                }
-            },
-        )
     }
 
     if (openZCD) {

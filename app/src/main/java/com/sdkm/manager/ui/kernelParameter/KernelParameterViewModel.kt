@@ -76,19 +76,12 @@ class KernelParameterViewModel(application: Application) : AndroidViewModel(appl
         val uclampMinRt: String = "N/A",
     )
 
-    sealed interface ZramResizeState {
-        data object Idle : ZramResizeState
-        data class Running(val requestedSize: String) : ZramResizeState
-        data class Finished(val result: KernelUtils.ZramResizeResult) : ZramResizeState
-    }
-
     data class Memory(
         val ramTotal: String = "N/A",
         val ramUsed: String = "N/A",
         val ramFree: String = "N/A",
         val ramTemperature: String = "N/A",
         val zramSize: String = "N/A",
-        val hasZramSize: Boolean = false,
         val zramCompAlgorithm: String = "N/A",
         val hasZramCompAlgorithm: Boolean = false,
         val availableZramCompAlgorithms: List<String> = emptyList(),
@@ -126,9 +119,6 @@ class KernelParameterViewModel(application: Application) : AndroidViewModel(appl
 
     private val _memory = MutableStateFlow(Memory())
     val memory: StateFlow<Memory> = _memory
-
-    private val _zramResizeState = MutableStateFlow<ZramResizeState>(ZramResizeState.Idle)
-    val zramResizeState: StateFlow<ZramResizeState> = _zramResizeState
 
     private val _boreScheduler = MutableStateFlow(BoreScheduler())
     val boreScheduler: StateFlow<BoreScheduler> = _boreScheduler
@@ -226,7 +216,6 @@ class KernelParameterViewModel(application: Application) : AndroidViewModel(appl
                 ramFree = ram.free,
                 ramTemperature = SoCUtils.getRamTemperature(context),
                 zramSize = KernelUtils.getZramSize(context),
-                hasZramSize = Utils.testFile(KernelUtils.ZRAM_SIZE),
                 zramCompAlgorithm = KernelUtils.getZramCompAlgorithm(context),
                 hasZramCompAlgorithm = Utils.testFile(KernelUtils.ZRAM_COMP_ALGORITHM),
                 availableZramCompAlgorithms = KernelUtils.getAvailableZramCompAlgorithms(),
@@ -306,22 +295,6 @@ class KernelParameterViewModel(application: Application) : AndroidViewModel(appl
                 else -> {}
             }
         }
-    }
-
-    fun updateZramSize(sizeInGb: Int) {
-        val context = getApplication<Application>()
-        _zramResizeState.value = ZramResizeState.Running("$sizeInGb GB")
-        viewModelScope.launch(Dispatchers.IO) {
-            val result = KernelUtils.setZramSizeDetailed(sizeInGb)
-            _memory.value = _memory.value.copy(
-                zramSize = KernelUtils.getZramSize(context),
-            )
-            _zramResizeState.value = ZramResizeState.Finished(result)
-        }
-    }
-
-    fun dismissZramResizeResult() {
-        _zramResizeState.value = ZramResizeState.Idle
     }
 
     fun updateZramCompAlgorithm(algorithm: String) {
