@@ -35,7 +35,6 @@ import android.util.Log
 import com.sdkm.manager.R
 import com.topjohnwu.superuser.Shell
 import java.io.File
-import kotlin.math.ceil
 
 object SoCUtils {
     const val TAG = "SoCUtils"
@@ -625,14 +624,66 @@ object SoCUtils {
         context.getString(R.string.unknown)
     }
 
-    fun getTotalRam(context: Context): String = runCatching {
+    fun getRamMemoryInfo(context: Context): RamMemoryInfo = runCatching {
         val memoryInfo = ActivityManager.MemoryInfo().apply {
             (context.getSystemService(Context.ACTIVITY_SERVICE) as ActivityManager).getMemoryInfo(this)
         }
-        val sizeInGb = memoryInfo.totalMem / (1024.0 * 1024 * 1024)
-        return "${ceil(sizeInGb).toInt()} GB"
+        RamMemoryInfo(
+            total = formatRamBytes(memoryInfo.totalMem),
+            free = formatRamBytes(memoryInfo.availMem),
+            used = formatRamBytes((memoryInfo.totalMem - memoryInfo.availMem).coerceAtLeast(0L)),
+        )
     }.getOrElse {
-        Log.e(TAG, "getTotalRam: ${it.message}", it)
-        context.getString(R.string.unknown)
+        Log.e(TAG, "getRamMemoryInfo: ${it.message}", it)
+        RamMemoryInfo(
+            total = context.getString(R.string.unknown),
+            free = context.getString(R.string.unknown),
+            used = context.getString(R.string.unknown),
+        )
     }
+
+    data class RamMemoryInfo(
+        val total: String,
+        val used: String,
+        val free: String,
+    )
+
+    private fun formatRamBytes(bytes: Long): String {
+        if (bytes <= 0L) return "0 GB"
+        val gib = 1024.0 * 1024.0 * 1024.0
+        val value = bytes / gib
+        return if (value >= 1.0) {
+            "%.1f GB".format(java.util.Locale.US, value).replace(".0 GB", " GB")
+        } else {
+            "%.0f MB".format(java.util.Locale.US, bytes / (1024.0 * 1024.0))
+        }
+    }
+
+    /**
+     * Read a dedicated RAM/DRAM/DDR thermal sensor when the kernel exposes one.
+     * This intentionally does not fall back to CPU/AP temperature, because that
+     * would be misleading on MediaTek kernels where RAM has no separate sensor.
+     */
+    fun getRamTemperature(context: Context): String = runCatching {
+        val result = Shell.cmd(
+            "for z in /sys/class/thermal/thermal_zone*; do " +
+                "[ -r \$z/type ] || continue; " +
+                "t=\$(cat \$z/type 2>/dev/null); " +
+                "case \"\$t\" in *ram*|*RAM*|*dram*|*DRAM*|*ddr*|*DDR*|*emi*|*EMI*|*mempll*|*MEMPLL*) " +
+                "v=\$(cat \$z/temp 2>/dev/null); " +
+                "case \"\$v\" in ''|'0'|'-127000') continue;; esac; " +
+                "echo \"\$v\"; break;; esac; " +
+                "done"
+        ).exec()
+        val raw = result.out.firstOrNull()?.trim()?.toLongOrNull()
+        if (result.isSuccess && raw != null && raw > 0L) {
+            return "%.1f °C".format(java.util.Locale.US, raw / 1000.0)
+        }
+        "N/A"
+    }.getOrElse {
+        Log.e(TAG, "getRamTemperature: ${it.message}", it)
+        "N/A"
+    }
+
+    fun getTotalRam(context: Context): String = getRamMemoryInfo(context).total
 }

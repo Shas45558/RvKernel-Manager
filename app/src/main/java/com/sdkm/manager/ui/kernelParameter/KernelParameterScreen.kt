@@ -234,10 +234,8 @@ fun KernelParameterScreen(viewModel: KernelParameterViewModel = viewModel(), nav
                             UclampCard(viewModel)
                         }
                     }
-                    if (memory.hasZramSize || memory.hasZramCompAlgorithm) {
-                        item {
-                            MemoryCard(viewModel)
-                        }
+                    item {
+                        MemoryCard(viewModel)
                     }
                     if (bore.hasBore) {
                         item {
@@ -1080,6 +1078,22 @@ fun UclampCard(viewModel: KernelParameterViewModel) {
 }
 
 @Composable
+private fun RamStat(label: String, value: String, modifier: Modifier = Modifier) {
+    Column(modifier = modifier) {
+        Text(
+            text = label,
+            style = MaterialTheme.typography.labelMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        Text(
+            text = value,
+            style = MaterialTheme.typography.titleMedium,
+            color = MaterialTheme.colorScheme.onSurface,
+        )
+    }
+}
+
+@Composable
 fun MemoryCard(viewModel: KernelParameterViewModel) {
     var expanded by rememberSaveable { mutableStateOf(false) }
     val rotateArrow by animateFloatAsState(
@@ -1088,6 +1102,7 @@ fun MemoryCard(viewModel: KernelParameterViewModel) {
     )
 
     val memory by viewModel.memory.collectAsStateWithLifecycle()
+    val zramResizeState by viewModel.zramResizeState.collectAsStateWithLifecycle()
     val zramSizeOptions = listOf("1 GB", "2 GB", "3 GB", "4 GB", "5 GB", "6 GB")
     var swappiness by remember { mutableStateOf(memory.swappiness) }
     var dirtyRatio by remember { mutableStateOf(memory.dirtyRatio) }
@@ -1124,6 +1139,52 @@ fun MemoryCard(viewModel: KernelParameterViewModel) {
                 modifier = Modifier.padding(16.dp),
                 verticalArrangement = Arrangement.spacedBy(16.dp),
             ) {
+                OutlinedCard(
+                    shape = MaterialTheme.shapes.extraLarge,
+                    colors = CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.surfaceBright,
+                    ),
+                    border = BorderStroke(
+                        width = 2.0.dp,
+                        color = MaterialTheme.colorScheme.onSurface,
+                    ),
+                ) {
+                    Column(
+                        modifier = Modifier.padding(16.dp),
+                        verticalArrangement = Arrangement.spacedBy(12.dp),
+                    ) {
+                        Text(
+                            text = stringResource(R.string.ram),
+                            style = MaterialTheme.typography.titleMedium,
+                            color = MaterialTheme.colorScheme.onSurface,
+                        )
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(12.dp),
+                        ) {
+                            RamStat("Total", memory.ramTotal, Modifier.weight(1f))
+                            RamStat("Used", memory.ramUsed, Modifier.weight(1f))
+                            RamStat("Free", memory.ramFree, Modifier.weight(1f))
+                        }
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Text(
+                                text = "RAM temperature",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                            Text(
+                                text = memory.ramTemperature,
+                                style = MaterialTheme.typography.titleMedium,
+                                color = MaterialTheme.colorScheme.onSurface,
+                            )
+                        }
+                    }
+                }
+
                 OutlinedCard(
                     shape = MaterialTheme.shapes.extraLarge,
                     colors = CardDefaults.cardColors(
@@ -1312,6 +1373,71 @@ fun MemoryCard(viewModel: KernelParameterViewModel) {
                 }
             }
         }
+    }
+
+    when (val state = zramResizeState) {
+        is KernelParameterViewModel.ZramResizeState.Running -> {
+            AlertDialog(
+                onDismissRequest = {},
+                title = { Text("Applying ZRAM size") },
+                text = {
+                    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                        Text("Changing ZRAM to ${state.requestedSize}…")
+                        Text(
+                            "The app is disabling the old ZRAM swap, resetting its contents, resizing the ZRAM device, recreating the swap area, and enabling it again.",
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                },
+                confirmButton = {},
+            )
+        }
+
+        is KernelParameterViewModel.ZramResizeState.Finished -> {
+            val result = state.result
+            AlertDialog(
+                onDismissRequest = { viewModel.dismissZramResizeResult() },
+                title = {
+                    Text(if (result.success) "ZRAM updated" else "ZRAM update failed")
+                },
+                text = {
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Text(
+                            if (result.success) {
+                                "Requested: ${result.requestedSize}\nApplied: ${result.actualSize}"
+                            } else {
+                                "Requested: ${result.requestedSize}\nApplied: ${result.actualSize}"
+                            },
+                        )
+                        HorizontalDivider()
+                        Text(
+                            "What happened",
+                            style = MaterialTheme.typography.titleSmall,
+                        )
+                        result.steps.forEach { step ->
+                            Text(
+                                step,
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
+                        result.error?.let { error ->
+                            Text(
+                                "Reason: $error",
+                                color = MaterialTheme.colorScheme.error,
+                            )
+                        }
+                    }
+                },
+                confirmButton = {
+                    TextButton(onClick = { viewModel.dismissZramResizeResult() }) {
+                        Text("OK")
+                    }
+                },
+            )
+        }
+
+        KernelParameterViewModel.ZramResizeState.Idle -> Unit
     }
 
     if (openZD) {

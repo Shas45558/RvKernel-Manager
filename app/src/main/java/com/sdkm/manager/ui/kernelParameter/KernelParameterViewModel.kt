@@ -36,6 +36,7 @@ import androidx.compose.runtime.setValue
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.sdkm.manager.utils.KernelUtils
+import com.sdkm.manager.utils.SoCUtils
 import com.sdkm.manager.utils.Utils
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.channels.Channel
@@ -75,7 +76,17 @@ class KernelParameterViewModel(application: Application) : AndroidViewModel(appl
         val uclampMinRt: String = "N/A",
     )
 
+    sealed interface ZramResizeState {
+        data object Idle : ZramResizeState
+        data class Running(val requestedSize: String) : ZramResizeState
+        data class Finished(val result: KernelUtils.ZramResizeResult) : ZramResizeState
+    }
+
     data class Memory(
+        val ramTotal: String = "N/A",
+        val ramUsed: String = "N/A",
+        val ramFree: String = "N/A",
+        val ramTemperature: String = "N/A",
         val zramSize: String = "N/A",
         val hasZramSize: Boolean = false,
         val zramCompAlgorithm: String = "N/A",
@@ -115,6 +126,9 @@ class KernelParameterViewModel(application: Application) : AndroidViewModel(appl
 
     private val _memory = MutableStateFlow(Memory())
     val memory: StateFlow<Memory> = _memory
+
+    private val _zramResizeState = MutableStateFlow<ZramResizeState>(ZramResizeState.Idle)
+    val zramResizeState: StateFlow<ZramResizeState> = _zramResizeState
 
     private val _boreScheduler = MutableStateFlow(BoreScheduler())
     val boreScheduler: StateFlow<BoreScheduler> = _boreScheduler
@@ -205,7 +219,12 @@ class KernelParameterViewModel(application: Application) : AndroidViewModel(appl
     fun loadMemory() {
         val context = getApplication<Application>()
         viewModelScope.launch(Dispatchers.IO) {
+            val ram = SoCUtils.getRamMemoryInfo(context)
             _memory.value = Memory(
+                ramTotal = ram.total,
+                ramUsed = ram.used,
+                ramFree = ram.free,
+                ramTemperature = SoCUtils.getRamTemperature(context),
                 zramSize = KernelUtils.getZramSize(context),
                 hasZramSize = Utils.testFile(KernelUtils.ZRAM_SIZE),
                 zramCompAlgorithm = KernelUtils.getZramCompAlgorithm(context),
@@ -291,12 +310,18 @@ class KernelParameterViewModel(application: Application) : AndroidViewModel(appl
 
     fun updateZramSize(sizeInGb: Int) {
         val context = getApplication<Application>()
+        _zramResizeState.value = ZramResizeState.Running("$sizeInGb GB")
         viewModelScope.launch(Dispatchers.IO) {
-            KernelUtils.setZramSize(sizeInGb)
+            val result = KernelUtils.setZramSizeDetailed(sizeInGb)
             _memory.value = _memory.value.copy(
                 zramSize = KernelUtils.getZramSize(context),
             )
+            _zramResizeState.value = ZramResizeState.Finished(result)
         }
+    }
+
+    fun dismissZramResizeResult() {
+        _zramResizeState.value = ZramResizeState.Idle
     }
 
     fun updateZramCompAlgorithm(algorithm: String) {

@@ -162,23 +162,99 @@ object KernelUtils {
         emptyList()
     }
 
-    fun setZramSize(sizeInGb: Int): Boolean = runCatching {
-        if (sizeInGb <= 0) return false
-        val sizeInBytes = sizeInGb.toLong() * 1024L * 1024L * 1024L
-        val command = """
-            if [ ! -e $ZRAM_SIZE ]; then exit 10; fi
-            swapoff $ZRAM 2>/dev/null || true
-            echo 1 > $ZRAM_RESET || exit 11
-            echo $sizeInBytes > $ZRAM_SIZE || exit 12
-            mkswap $ZRAM >/dev/null 2>&1 || exit 13
-            swapon $ZRAM || exit 14
-            actual=${'$'}(cat $ZRAM_SIZE)
-            [ "${'$'}actual" = "$sizeInBytes" ]
-        """.trimIndent()
-        Shell.cmd(command).exec().isSuccess
-    }.onFailure {
-        Log.e(TAG, "setZramSize: ${it.message}", it)
-    }.getOrDefault(false)
+    data class ZramResizeResult(
+        val success: Boolean,
+        val requestedSize: String,
+        val actualSize: String,
+        val steps: List<String>,
+        val error: String? = null,
+    )
+
+    fun setZramSizeDetailed(sizeInGb: Int): ZramResizeResult {
+        val requestedSize = "$sizeInGb GB"
+        val steps = mutableListOf<String>()
+
+        if (sizeInGb <= 0) {
+            return ZramResizeResult(false, requestedSize, "N/A", steps, "Invalid ZRAM size")
+        }
+
+        return try {
+            if (!Utils.testFile(ZRAM_SIZE)) {
+                return ZramResizeResult(false, requestedSize, "N/A", steps, "ZRAM disksize interface is unavailable")
+            }
+
+            val sizeInBytes = sizeInGb.toLong() * 1024L * 1024L * 1024L
+            val oldSizeBytes = Utils.readFile(ZRAM_SIZE).trim().toLongOrNull() ?: 0L
+            val oldSize = if (oldSizeBytes > 0L) {
+                if (oldSizeBytes % (1024L * 1024L * 1024L) == 0L) {
+                    "${oldSizeBytes / (1024L * 1024L * 1024L)} GB"
+                } else {
+                    "%.1f GB".format(java.util.Locale.US, oldSizeBytes / (1024.0 * 1024.0 * 1024.0))
+                }
+            } else {
+                "0 GB"
+            }
+
+            steps += "Current ZRAM size: $oldSize"
+
+            // Disable the existing compressed swap before changing its backing size.
+            Shell.cmd("swapoff $ZRAM 2>/dev/null || true").exec()
+            steps += "✓ Disabled ZRAM swap"
+
+            // Clear the old compressed pages and metadata.
+            if (!Shell.cmd("echo 1 > $ZRAM_RESET").exec().isSuccess) {
+                steps += "✗ Failed to reset ZRAM"
+                return ZramResizeResult(false, requestedSize, "N/A", steps, "Could not reset /sys/block/zram0/reset")
+            }
+            steps += "✓ Reset old ZRAM contents"
+
+            // Set the requested uncompressed virtual disk size.
+            if (!Shell.cmd("echo $sizeInBytes > $ZRAM_SIZE").exec().isSuccess) {
+                steps += "✗ Failed to resize ZRAM"
+                return ZramResizeResult(false, requestedSize, "N/A", steps, "Could not write the requested ZRAM size")
+            }
+            steps += "✓ Resized ZRAM to $requestedSize"
+
+            // Recreate the swap area after changing disksize.
+            if (!Shell.cmd("mkswap $ZRAM >/dev/null 2>&1").exec().isSuccess) {
+                steps += "✗ Failed to recreate swap header"
+                return ZramResizeResult(false, requestedSize, "N/A", steps, "mkswap failed")
+            }
+            steps += "✓ Recreated ZRAM swap area"
+
+            // Enable the newly sized ZRAM swap.
+            if (!Shell.cmd("swapon $ZRAM").exec().isSuccess) {
+                steps += "✗ Failed to enable ZRAM swap"
+                return ZramResizeResult(false, requestedSize, "N/A", steps, "swapon failed")
+            }
+            steps += "✓ Enabled ZRAM swap"
+
+            val actualBytes = Utils.readFile(ZRAM_SIZE).trim().toLongOrNull() ?: 0L
+            val actualSize = if (actualBytes > 0L) {
+                if (actualBytes % (1024L * 1024L * 1024L) == 0L) {
+                    "${actualBytes / (1024L * 1024L * 1024L)} GB"
+                } else {
+                    "%.1f GB".format(java.util.Locale.US, actualBytes / (1024.0 * 1024.0 * 1024.0))
+                }
+            } else {
+                "0 GB"
+            }
+
+            if (actualBytes != sizeInBytes) {
+                steps += "✗ Verification failed: kernel reports $actualSize"
+                return ZramResizeResult(false, requestedSize, actualSize, steps, "The kernel did not apply the requested size")
+            }
+
+            steps += "✓ Verified kernel ZRAM size: $actualSize"
+            ZramResizeResult(true, requestedSize, actualSize, steps)
+        } catch (t: Throwable) {
+            Log.e(TAG, "setZramSizeDetailed: ${t.message}", t)
+            steps += "✗ Operation failed"
+            ZramResizeResult(false, requestedSize, "N/A", steps, t.message ?: "Unknown error")
+        }
+    }
+
+    fun setZramSize(sizeInGb: Int): Boolean = setZramSizeDetailed(sizeInGb).success
 
     fun swapoffZram() {
         runCatching {
