@@ -155,8 +155,6 @@ fun SoCScreen(viewModel: SoCViewModel = viewModel(), navController: NavControlle
 
     val scrollBehavior = TopAppBarDefaults.pinnedScrollBehavior(rememberTopAppBarState())
 
-    val hasCpuInputBoostMs by viewModel.hasCpuInputBoostMs.collectAsStateWithLifecycle()
-    val hasCpuSchedBoostOnInput by viewModel.hasCpuSchedBoostOnInput.collectAsStateWithLifecycle()
     val hasBigCluster by viewModel.hasBigCluster.collectAsStateWithLifecycle()
     val hasPrimeCluster by viewModel.hasPrimeCluster.collectAsStateWithLifecycle()
 
@@ -239,6 +237,8 @@ fun CPUMonitorCard(viewModel: SoCViewModel) {
 
     val hasBigCluster by viewModel.hasBigCluster.collectAsStateWithLifecycle()
     val hasPrimeCluster by viewModel.hasPrimeCluster.collectAsStateWithLifecycle()
+    val hasCpuInputBoostMs by viewModel.hasCpuInputBoostMs.collectAsStateWithLifecycle()
+    val hasCpuSchedBoostOnInput by viewModel.hasCpuSchedBoostOnInput.collectAsStateWithLifecycle()
 
     OutlinedCard(
         shape = MaterialTheme.shapes.extraLarge,

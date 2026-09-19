@@ -172,8 +172,8 @@ object KernelUtils {
             echo $sizeInBytes > $ZRAM_SIZE || exit 12
             mkswap $ZRAM >/dev/null 2>&1 || exit 13
             swapon $ZRAM || exit 14
-            actual=\$(cat $ZRAM_SIZE)
-            [ "\$actual" = "$sizeInBytes" ]
+            actual=${'$'}(cat $ZRAM_SIZE)
+            [ "${'$'}actual" = "$sizeInBytes" ]
         """.trimIndent()
         Shell.cmd(command).exec().isSuccess
     }.onFailure {
